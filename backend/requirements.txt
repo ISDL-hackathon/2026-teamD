@@ -1,0 +1,11 @@
+使用するライブラリ
+
+fastapi
+uvicorn
+openai
+gTTS
+pyqrcode
+pypng
+opencv-python
+supabase
+python-dotenv
