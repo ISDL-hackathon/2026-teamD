@@ -1,3 +1,13 @@
-def test_gemini_response(message: str) -> str:
-    """フロントから届いた文字に、テスト用の返事を返す関数"""
-    return f"【Geminiテスト応答】『{message}』って言いましたね！バックエンドは正常に動いてますよ！"
+import os
+from dotenv import load_dotenv
+from google import genai
+
+load_dotenv()
+
+client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+
+interaction = client.interactions.create(
+    model="gemini-3.5-flash",
+    input="Explain how AI works in a few words"
+)
+print(interaction.output_text)

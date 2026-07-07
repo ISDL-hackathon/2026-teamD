@@ -35,3 +35,4 @@ geminiAPIはGemini 2.5 Flash-Lite または　Gemini 2.5 Flashを使用
 Gemini 2.5 Flash-Lite   大量のタスクや簡単なチャット向き    30回 / 分、1,500回 / 日
 Gemini 2.5 Flash        スピードと賢さのバランスが抜群      15回 / 分、1,500回 / 日
 無料枠で送信したプロンプトや回答データは、Googleのサービス改善（AIの学習など）に利用される可能性があります。個人情報や会社の機密情報などは絶対に入力しないようにしてください。（有料プランに切り替えると学習には使われなくなります）
+https://ai.google.dev/gemini-api/docs/models?hl=ja&_gl=1*1yxapu7*_up*MQ..*_ga*MTg3OTE0MjM2LjE3ODMzOTI2NzQ.*_ga_P1DBVKWT6V*czE3ODMzOTI2NzMkbzEkZzAkdDE3ODMzOTI2NzMkajYwJGwwJGgyNjYzNjcxNDE.
