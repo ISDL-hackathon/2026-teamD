@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from 'react';
-import { TitleScreen, RegisterScreen } from '../../components/ui/tutorial/screens';
+import TitleScreen, { RegisterScreen, LoginScreen } from "../../components/ui/tutorial/screens";
+
 
 export default function GameFlow() {
-  const [step, setStep] = useState<'TITLE' | 'REGISTER' | 'SLIDESHOW'>('TITLE');
+  const [step, setStep] = useState<'TITLE' | 'REGISTER' |  'LOGIN'|'SLIDESHOW'>('TITLE');
   const [slideIndex, setSlideIndex] = useState(0);
   const [mediaError, setMediaError] = useState<string | null>(null);
 
@@ -53,25 +54,28 @@ export default function GameFlow() {
         flexDirection: 'column'
       }}>
         
-        {/* 1. タイトル画面（新規登録とログインの出し分けに対応） */}
-        {step === 'TITLE' && (
-          <TitleScreen 
-            onRegisterClick={() => setStep('REGISTER')} 
-            onLoginClick={() => {
-              // ハッカソンデモ用：ログイン時はチュートリアルをスキップして即ダッシュボードへ
-              alert("ログインしました（デモ用モック処理）。本編へ移動します。");
+               {/* 1. タイトル画面（縦ボックスを消し、左右の箱クリックで状態移行） */}
+          {step === 'TITLE' && (
+            <TitleScreen 
+              onRegisterClick={() => setStep('REGISTER')} 
+              onLoginClick={() => setStep('LOGIN')} 
+            />
+          )}
+
+          {/* 2. 新規登録画面 */}
+          {step === 'REGISTER' && (
+            <RegisterScreen onRegisterSuccess={(userId, name, grade) => {
+              setStep('SLIDESHOW');
+              setSlideIndex(0);
+            }} />
+          )}
+
+          {/* 🌟 2.5 ログイン画面（モックを廃止し、バックエンド通信に対応！） */}
+          {step === 'LOGIN' && (
+            <LoginScreen onLoginSuccess={() => {
               window.location.href = '/dashboard';
-            }} 
-          />
-        )}
-        
-        {/* 2. 新規登録画面 */}
-        {step === 'REGISTER' && (
-          <RegisterScreen onRegisterSuccess={(userId, name, grade) => {
-            setStep('SLIDESHOW');
-            setSlideIndex(0);
-          }} />
-        )}
+            }} />
+          )}  
 
         {/* 3. チュートリアル紙芝居＋動画画面 */}
         {step === 'SLIDESHOW' && (
