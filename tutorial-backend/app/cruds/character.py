@@ -7,7 +7,7 @@ from app import supabase
 def get_character_by_id(uid, cid):
     print("キャラクター排出実装")
     try:
-        response = supabase.table("characters").select("*").eq("id", cid).single().execute()
+        response = supabase.table("characters").select("name, grade, rare, img1, quote1").eq("id", cid).single().execute()
         print("キャラクター取得成功")
 
         #キャラ被り
@@ -70,3 +70,4 @@ def get_character_rate():
     except Exception as e:
         print(f"ガチャ排出失敗: {e}")
         return False
+    
