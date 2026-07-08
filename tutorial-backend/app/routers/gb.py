@@ -8,7 +8,7 @@ router = APIRouter(prefix="/gb", tags=["gb"])
 class GachaRequest(BaseModel):
     uid: int
 
-@router.post("/gb")
+@router.post("/tutorial")
 def tutorial_gb_endpoint(request_data: GachaRequest):
     uid = request_data.uid
     print(f"チュートリアルGB配布発生 UID: {uid}")
