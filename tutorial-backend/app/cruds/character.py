@@ -1,5 +1,8 @@
 from app import supabase
 
+#本番ではハッシュ化
+
+
 #キャラクターが排出
 def get_character_by_id(uid, cid):
     print("キャラクター排出実装")

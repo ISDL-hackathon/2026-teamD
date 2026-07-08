@@ -1,5 +1,7 @@
 from app import supabase
 
+#本番ではハッシュ化
+
 
 #サインアップしたユーザをDBに登録する
 def sign_up_user_to_db(name, grade, sid, pword):
@@ -10,7 +12,8 @@ def sign_up_user_to_db(name, grade, sid, pword):
             "name": name,
             "grade": grade,
             "sid": sid,
-            "pword": pword
+            "pword": pword,
+            "gb":0
         }).execute()
         
         print("ユーザー登録成功") 

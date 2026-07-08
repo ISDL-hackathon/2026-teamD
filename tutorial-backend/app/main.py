@@ -1,8 +1,8 @@
 from contextlib import asynccontextmanager
-from app import SUPABASE_URL, SUPABASE_KEY
+from . import SUPABASE_URL, SUPABASE_KEY
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import gatya, auth
+from app.routers import gatya, auth, gb
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -33,6 +33,7 @@ app.add_middleware(
 
 app.include_router(gatya.router)
 app.include_router(auth.router)
+app.include_router(gb.router)
 
 
 
