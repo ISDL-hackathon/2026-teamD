@@ -16,7 +16,7 @@ def sign_up_user_to_db(name, grade, sid, pword):
             "gb":0
         }).execute()
         
-        print("ユーザー登録成功") 
+        print(f"response.data:", response.data)
         return response.data
     except Exception as e:
         print(f"ユーザー登録失敗: {e}")
@@ -26,7 +26,7 @@ def sign_in_user_to_db(sid, pword):
     print("ユーザーログイン実装中")
     try:
         response = supabase.table("users").select("*").eq("sid", sid).eq("pword", pword).execute()
-        print("ユーザーログイン成功")
+        print(f"response.data:", response.data)
         return response.data
     except Exception as e:
         print(f"ユーザーログイン失敗: {e}")

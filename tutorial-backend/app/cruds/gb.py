@@ -14,7 +14,7 @@ def update_gb(uid, gb):
             return False
         
         response = supabase.table("users").update({"gb": new_gb}).eq("uid", uid).execute()
-        print("GB増減成功")
+        print(f"response.data:", response.data)
         return response.data
     except Exception as e:
         print(f"GB増減失敗: {e}")

@@ -33,7 +33,8 @@ def sign_up_endpoint(request_data: SignUpRequest):
     )
     if not result:
         return {"status": "error", "message": "サインアップに失敗しました"}
-    return {"status": "success", "user": result}
+    print(f"result:", result)
+    return result
 
 @router.post("/signin")
 def sign_in_endpoint(request_data: SignInRequest):
@@ -44,7 +45,8 @@ def sign_in_endpoint(request_data: SignInRequest):
     )
     if not result:
         return {"status": "error", "message": "ログインに失敗しました。学生番号かパスワードが違います"}
-    return {"status": "success", "user": result}
+    print(f"result:", result)
+    return result
 
 
 @router.post("/signout")

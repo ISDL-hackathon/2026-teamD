@@ -1,6 +1,6 @@
 from app import supabase
 
-#本番ではハッシュ化
+#本番ではハッシュ化？
 
 
 #キャラクターが排出
@@ -16,6 +16,7 @@ def get_character_by_id(uid, cid):
             return False
         else:
             add_character_to_user(uid, cid)
+        print(f"response:",response.data)
         return response.data
     
     except Exception as e:
@@ -33,6 +34,7 @@ def add_character_to_user(uid, cid):
         }).execute()
         
         print("キャラクター追加成功") 
+        print(f"response:",response.data)
         return response.data
     
     except Exception as e:
@@ -43,7 +45,7 @@ def add_character_to_user(uid, cid):
 def check_character_ownership(uid, cid):
     print("キャラ被り実装中")
     res = supabase.table("user_character").select("id").eq("uid", uid).eq("cid", cid).execute()
-    return len(res.data) > 0  # 1件以上あればTrue（被り）
+    return len(res.data) > 0 
 
 #キャラ削除
 def remove_character_from_user(uid, cid):

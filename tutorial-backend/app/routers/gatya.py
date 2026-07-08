@@ -20,7 +20,8 @@ def draw_gacha_endpoint(request_data: GachaRequest):
     if not result:
         return {"status": "error", "message": "ガチャ排出に失敗しました"}
         
-    return {"status": "success", "character": result}
+    print(f"result:",result)
+    return result
 
 #チュートリアルガチャエンドポイント
 @router.post("/tutorial")
@@ -33,7 +34,8 @@ def tutorial_gacha_endpoint(request_data: GachaRequest):
     if not result:
         return {"status": "error", "message": "チュートリアルガチャに失敗しました"}
         
-    return {"status": "success", "character": result}
+    print(f"result:",result)
+    return result
 
 #チュートリアルでイライラした倉貫さんを排出
 def get_kuranuki_to_user(uid, id=1):
