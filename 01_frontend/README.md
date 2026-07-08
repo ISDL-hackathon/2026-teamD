@@ -1,18 +1,32 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-## Getting Started
+# 2026-teamD
+# 💻 フロントエンド (Next.js)
 
-First, run the development server:
+このフォルダは、プロジェクトのフロントエンド（画面側）のコードを管理しています。
+
+## 🛠️ 技術スタック
+- **フレームワーク:** Next.js (App Router)
+- **言語:** TypeScript
+- **スタイリング:** Tailwind CSS
+- **状態管理・通信:** (Axios, SWR, Vercel AI SDK など、使っているものを記載)
+
+## 🚀 開発サーバーの起動方法
+
+新しく開発を始めるときや、画面を確認するときの手順です。必ず `frontend` フォルダに移動してからコマンドを実行してください。
 
 ```bash
+# 1. フロントエンドのフォルダに移動
+cd frontend
+
+# 2. パッケージ（ライブラリ）のインストール（初回や追加時のみ）
+npm install
+
+# 3. 開発サーバーの起動
+cd frontend
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+
+
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
