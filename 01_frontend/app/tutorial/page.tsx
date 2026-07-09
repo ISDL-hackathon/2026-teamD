@@ -1,32 +1,45 @@
 "use client";
 
 import { useState } from 'react';
-// 🔌 ガチャ画面の部品（TutorialGachaScreen）はすでにScreensに内蔵されているので、一緒にインポートします
 import TitleScreen, { RegisterScreen, LoginScreen } from "../../components/ui/tutorial/screens";
-// ※ もしTutorialGachaScreenが別で定義されていなければ、Screens.tsxに内蔵されているのでこのままでOKです
 
 export default function GameFlow() {
   const [step, setStep] = useState<'TITLE' | 'REGISTER' | 'LOGIN' | 'SLIDESHOW' | 'GACHA_RESULT'>('TITLE');
   const [slideIndex, setSlideIndex] = useState(0);
   const [mediaError, setMediaError] = useState<string | null>(null);
   
-  // 💾 バックエンドから返ってきたユーザーIDとキャラクター情報を保管する状態
   const [userId, setUserId] = useState<number>(1);
   const [gachaCharacter, setGachaCharacter] = useState<any>(null);
   const [isGachaLoading, setIsGachaLoading] = useState(false);
+
+  // 🌟 タップした場所の座標を保存する状態
+  const [tapEffects, setTapEffects] = useState<{ id: number; x: number; y: number }[]>([]);
 
   const tutorialSlides = [
     '/tut1.png',  '/tut2.png',  '/tut3.png',  '/tut4.png',  '/tut5.png',
     '/tut6.png',  '/tut7.png',  '/tut8.png',  '/tut9.png',  '/tut10.png',
     '/tut11.png', '/tut12.png', '/tut13.png', '/tut14.png', '/tut15.png',
-    '/tut_gacha.mp4', // 🎬 15番目の要素（インデックス15）
+    '/tut_gacha.mp4', 
     '/tut17.png', '/tut18.png', '/tut19.png', '/tut20.png', '/tut21.png', '/tut22.png'
   ];
 
   const currentPath = tutorialSlides[slideIndex];
   const isMp4 = currentPath?.endsWith('.mp4');
 
-  const handleSlideTap = () => {
+  const handleSlideTap = (e: React.MouseEvent<HTMLDivElement>) => {
+    // 1. タップ演出の生成処理
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    const newEffect = { id: Date.now(), x, y };
+    setTapEffects(prev => [...prev, newEffect]);
+
+    setTimeout(() => {
+      setTapEffects(prev => prev.filter(effect => effect.id !== newEffect.id));
+    }, 500);
+
+    // 2. 既存の画面遷移処理
     if (isMp4) return;
     setMediaError(null);
 
@@ -38,14 +51,12 @@ export default function GameFlow() {
     }
   };
 
-  // 🎬 ガチャ動画（MP4）が再生し終わった時に呼ばれる処理
   const handleVideoEnded = async () => {
     setMediaError(null);
     setIsGachaLoading(true);
 
     try {
       console.log(`📡 チュートリアルガチャAPI呼び出し... UID: ${userId}`);
-      // 🚀 kawamuraさんの「gatya.py」の窓口を実際に叩きに行きます！
       const res = await fetch('http://localhost:8000/gacha/tutorial', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -56,13 +67,11 @@ export default function GameFlow() {
         const data = await res.json();
         console.log("🎁 ガチャAPIレスポンス成功:", data);
         
-        // バックエンドから成功が返ってきたら、ガチャ結果画面へ移行
         if (data.status !== "error") {
-          setGachaCharacter(data); // 倉貫さんのデータを保存
-          setStep('GACHA_RESULT');  // ➔ 紙芝居を一時中断して、ガチャ結果画面を表示！
+          setGachaCharacter(data);
+          setStep('GACHA_RESULT');
         } else {
           alert("ガチャ失敗: " + data.message);
-          // 失敗した場合は諦めて次のスライドへ
           moveToNextSlide();
         }
       } else {
@@ -86,6 +95,33 @@ export default function GameFlow() {
   return (
     <div style={{ background: '#222', width: '100vw', height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
       
+      {/* 🌟 アニメーション定義（タップ波紋 ＋ ガチャ結果画面のエフェクト） */}
+      <style>
+        {`
+          @keyframes gameTapRipple {
+            0% { transform: translate(-50%, -50%) scale(0.3); opacity: 1; box-shadow: 0 0 10px 5px rgba(255, 255, 255, 0.9); }
+            100% { transform: translate(-50%, -50%) scale(2); opacity: 0; box-shadow: 0 0 30px 10px rgba(234, 179, 8, 0); }
+          }
+          @keyframes whiteFlash {
+            0% { background-color: #ffffff; }
+            100% { background-color: transparent; }
+          }
+          @keyframes slideDownFade {
+            0% { transform: translateY(-30px); opacity: 0; }
+            100% { transform: translateY(0); opacity: 1; }
+          }
+          @keyframes focusIn {
+            0% { filter: blur(10px); transform: scale(1.05); opacity: 0; }
+            100% { filter: blur(0px); transform: scale(1); opacity: 1; }
+          }
+          @keyframes fadeInDelay {
+            0% { opacity: 0; }
+            80% { opacity: 0; }
+            100% { opacity: 1; }
+          }
+        `}
+      </style>
+
       <main style={{ 
         background: '#000', 
         width: '100%', 
@@ -98,7 +134,6 @@ export default function GameFlow() {
         flexDirection: 'column'
       }}>
         
-        {/* 1. タイトル画面 */}
         {step === 'TITLE' && (
           <TitleScreen 
             onRegisterClick={() => setStep('REGISTER')} 
@@ -106,23 +141,20 @@ export default function GameFlow() {
           />
         )}
         
-        {/* 2. 新規登録画面 */}
         {step === 'REGISTER' && (
           <RegisterScreen onRegisterSuccess={(uid, name, grade) => {
-            setUserId(uid); // 💾 登録時に発行された本当のUIDを記憶する
+            setUserId(uid);
             setStep('SLIDESHOW');
             setSlideIndex(0);
           }} />
         )}
 
-        {/* 2.5 ログイン画面 */}
         {step === 'LOGIN' && (
           <LoginScreen onLoginSuccess={() => {
             window.location.href = '/dashboard';
           }} />
         )}
 
-        {/* 3. チュートリアル紙芝居＋動画画面 */}
         {step === 'SLIDESHOW' && (
           <div 
             onClick={handleSlideTap} 
@@ -134,9 +166,29 @@ export default function GameFlow() {
               display: 'flex',
               justifyContent: 'center',
               alignItems: 'center',
-              background: '#111'
+              background: '#111',
+              overflow: 'hidden'
             }}
           >
+            {/* 🌟 タップエフェクトの描画 */}
+            {tapEffects.map(effect => (
+              <div 
+                key={effect.id}
+                style={{
+                  position: 'absolute',
+                  left: effect.x,
+                  top: effect.y,
+                  width: '30px',
+                  height: '30px',
+                  borderRadius: '50%',
+                  backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                  pointerEvents: 'none',
+                  zIndex: 50,
+                  animation: 'gameTapRipple 0.5s ease-out forwards'
+                }}
+              />
+            ))}
+
             {isMp4 ? (
               <div style={{ width: '100%', height: '100%', position: 'relative' }}>
                 <video 
@@ -149,8 +201,9 @@ export default function GameFlow() {
                   onError={() => setMediaError(`動画ファイルが見つかりません:\npublic${currentPath}`)}
                 />
                 {isGachaLoading && (
-                  <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '1.2rem', fontWeight: 'bold' }}>
-                    キャラクター召喚中...
+                  <div style={{ position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#000', fontSize: '1.2rem', fontWeight: 'bold' }}>
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black mr-3"></div>
+                    データ解析中...
                   </div>
                 )}
               </div>
@@ -162,39 +215,58 @@ export default function GameFlow() {
                 onError={() => setMediaError(`画像ファイルが見つかりません:\npublic${currentPath}`)}
               />
             )}
-
-            {isMp4 && (
-              <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', background: 'transparent' }} />
-            )}
-
-            {mediaError && (
-              <div style={{ position: 'absolute', background: 'rgba(255,0,0,0.9)', color: '#fff', padding: '20px', margin: '20px', borderRadius: '8px', fontSize: '0.9rem', whiteSpace: 'pre-wrap', zIndex: 999, textAlign: 'center' }}>
-                <strong style={{ display: 'block', marginBottom: '8px' }}>【ファイル読み込みエラー】</strong>
-                {mediaError}
-              </div>
-            )}
           </div>
         )}
 
-        {/* 🌟 4. 動画終了後に割り込む、ガチャ結果表示（倉貫さん確定） */}
+        {/* 🌟 ガチャ結果画面：動画からのシームレス演出版 */}
         {step === 'GACHA_RESULT' && (
-          <div className="w-full h-full bg-slate-950 flex flex-col items-center justify-center p-6 text-white text-center select-none animate-in fade-in duration-500">
-            <div className="flex flex-col items-center bg-slate-900/90 p-8 rounded-3xl border-2 border-yellow-500 shadow-[0_0_30px_rgba(234,179,8,0.3)] text-center max-w-sm">
-              <span className="text-yellow-400 font-bold tracking-widest text-xs mb-2 block animate-pulse">★ TUTORIAL GET ★</span>
-              {/* kawamuraさんのDBに登録されたキャラクター名を表示（無ければデフォルト名） */}
-              <h3 className="text-2xl font-black text-white mb-6">😠 {gachaCharacter?.name || "イライラした倉貫さん"}</h3>
-              <p className="text-slate-400 text-xs mb-6 leading-relaxed">
-                チュートリアル報酬として、限定キャラクターがあなたのインベントリ（Supabase）に正常に書き込まれました！
-              </p>
-              <button 
-                onClick={() => {
-                  setStep('SLIDESHOW'); // 紙芝居（SLIDESHOWモード）に戻る
-                  moveToNextSlide();    // 動画の次のスライド（17枚目）へ進める
-                }} 
-                className="w-full py-3 bg-white text-black font-bold rounded-xl hover:bg-slate-200 transition-colors text-sm active:scale-95"
-              >
-                ストーリーの続きを見る
-              </button>
+          <div className="w-full h-full flex flex-col items-center justify-center p-6 text-white text-center select-none relative overflow-hidden"
+               style={{ 
+                 backgroundImage: 'radial-gradient(circle at center, #1e293b 0%, #020617 100%)',
+               }}>
+            
+            <div className="absolute inset-0 z-50 pointer-events-none"
+                 style={{ animation: 'whiteFlash 1.2s ease-out forwards' }} />
+            
+            <div className="flex flex-col items-center z-10 w-full px-4 pt-12 h-full justify-between pb-12">
+              
+              <div style={{ animation: 'slideDownFade 0.8s ease-out forwards', opacity: 0 }}>
+                <p className="text-yellow-400 font-black tracking-[0.4em] text-sm mb-2 drop-shadow-[0_0_8px_rgba(234,179,8,0.8)]">
+                  NEW CHARACTER
+                </p>
+                <div className="h-[1px] w-32 bg-gradient-to-r from-transparent via-yellow-500 to-transparent mx-auto" />
+              </div>
+              
+              <div className="relative w-full max-w-[300px] mt-8"
+                   style={{ animation: 'focusIn 1s ease-out 0.3s forwards', opacity: 0 }}>
+                <div className="absolute -inset-4 bg-yellow-500/10 rounded-full blur-2xl animate-pulse" />
+                <h3 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white via-slate-200 to-slate-400 tracking-wider mb-2">
+                  {gachaCharacter?.name || "倉貫さん"}
+                </h3>
+                <div className="flex justify-center items-center gap-3 mb-6">
+                  <span className="px-3 py-1 bg-white/10 border border-white/20 rounded text-xs tracking-widest">Lv.1</span>
+                  <span className="px-3 py-1 bg-yellow-500/20 border border-yellow-500/50 text-yellow-400 rounded text-xs tracking-widest font-bold">COST 99</span>
+                </div>
+                <div className="bg-black/40 backdrop-blur-sm p-4 rounded-xl border border-slate-700/50 text-left">
+                  <p className="text-slate-300 text-sm leading-relaxed">
+                    データベースとの同期完了。<br/>
+                    あなたのプロジェクトにアサインされました。
+                  </p>
+                </div>
+              </div>
+
+              <div className="w-full mt-auto" style={{ animation: 'fadeInDelay 2s ease-out forwards', opacity: 0 }}>
+                <button 
+                  onClick={() => {
+                    setStep('SLIDESHOW'); 
+                    moveToNextSlide();    
+                  }} 
+                  className="w-full max-w-[260px] mx-auto py-4 bg-white hover:bg-slate-200 text-black font-black rounded-xl shadow-[0_0_20px_rgba(255,255,255,0.3)] transition-all transform active:scale-95 text-sm tracking-widest uppercase"
+                >
+                  確認
+                </button>
+              </div>
+              
             </div>
           </div>
         )}

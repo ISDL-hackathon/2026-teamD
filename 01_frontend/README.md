@@ -23,7 +23,7 @@ cd frontend
 npm install
 
 # 3. 開発サーバーの起動
-cd frontend
+cd 01_frontend
 npm run dev
 
 

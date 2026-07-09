@@ -76,20 +76,25 @@ export function RegisterScreen({
   // 🎓 初期値を「学部4年」に変更
   const [grade, setGrade] = useState('学部4年');
   const [isLoading, setIsLoading] = useState(false);
+// 📄 Screens.tsx 内の RegisterScreen の中身
 
-  const giftTutorialGB = async (userId: number) => {
-    try {
-      console.log(`📡 チュートリアルGB配布API呼び出し... UID: ${userId}`);
-      const res = await fetch('http://localhost:8000/gb/gb', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ uid: userId })
-      });
-      if (res.ok) console.log("🎁 GB配布成功！");
-    } catch (error) {
-      console.error("GB配布通信失敗:", error);
-    }
-  };
+const giftTutorialGB = async (userId: number) => {
+  try {
+    console.log(`📡 チュートリアルGB配布API呼び出し... UID: ${userId}`);
+    
+    // ❌ 修正前: fetch('http://localhost:8000/gb/gb', {
+    // ⭕ 修正後: 正しい部屋名「/gb/tutorial」に合わせる！
+    const res = await fetch('http://localhost:8000/gb/tutorial', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ uid: userId })
+    });
+    
+    if (res.ok) console.log("🎁 GB配布成功！");
+  } catch (error) {
+    console.error("GB配布通信失敗:", error);
+  }
+};
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
