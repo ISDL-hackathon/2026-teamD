@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 from . import SUPABASE_URL, SUPABASE_KEY
+import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routers import gatya, auth, gb
@@ -39,5 +40,4 @@ app.include_router(gb.router)
 
 
 if __name__ == "__main__":
-    import uvicorn
     uvicorn.run("app.main:app", host="127.0.0.1", port=8000, reload=True)
