@@ -171,36 +171,49 @@ export function LoginScreen({
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!studentId || !password) {
-      alert("学籍番号とパスワードを入力してください！");
-      return;
-    }
-    setIsLoading(true);
-    try {
-      // 🔌 バックエンドのログインエンドポイントを叩く処理
-      const res = await fetch('http://localhost:8000/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sid: studentId, pword: password })
-      });
+  // 📄 Screens.tsx 内の LoginScreen の中身
 
-      if (res.ok) {
-        const data = await res.json();
-        console.log("📡 ログイン成功:", data);
-        alert("ログインしました！");
-        onLoginSuccess();
-      } else {
-        alert("ログイン失敗: 学籍番号またはパスワードが間違っています。");
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  if (!studentId || !password) {
+    alert("学籍番号とパスワードを入力してください！");
+    return;
+  }
+  setIsLoading(true);
+  try {
+    // ❌ 修正前: fetch('http://localhost:8000/auth/login', {
+    // ⭕ 修正後: バックエンドの「/signin」に名前を合わせる！
+    const res = await fetch('http://localhost:8000/auth/signin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sid: studentId, pword: password })
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      console.log("📡 ログイン成功:", data);
+      
+      // ⚠️ 【おまけの超重要チェック！】
+      // もしパスワードが違っても、バックエンドは「200 OK」のまま 
+      // {"status": "error", "message": "..."} を返してくるコードになっているので、
+      // ここでそれを受け止められるようにしておくと完璧です！
+      if (data.status === "error") {
+        alert(data.message); // 「学生番号かパスワードが違います」と表示
+        return;
       }
-    } catch (error) {
-      console.error("通信エラー:", error);
-      alert("バックエンドサーバーに接続できません。");
-    } finally {
-      setIsLoading(false);
+
+      alert("ログインしました！");
+      onLoginSuccess();
+    } else {
+      alert("サーバーエラーが発生しました。");
     }
-  };
+  } catch (error) {
+    console.error("通信エラー:", error);
+    alert("バックエンドサーバーに接続できません。");
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   return (
     <div className="relative w-full h-full bg-slate-900 flex flex-col items-center justify-center p-6 text-white select-none">
