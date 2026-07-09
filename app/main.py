@@ -3,7 +3,7 @@ from . import SUPABASE_URL, SUPABASE_KEY
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import gatya, auth, gb
+from app.routers import staying, conversation#gatya, auth, gb
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -32,10 +32,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(gatya.router)
-app.include_router(auth.router)
-app.include_router(gb.router)
-
+#app.include_router(gatya.router)
+#app.include_router(auth.router)
+#app.include_router(gb.router)
+app.include_router(staying.router)
+app.include_router(conversation.router)
 
 
 
