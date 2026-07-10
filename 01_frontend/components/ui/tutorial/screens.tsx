@@ -84,7 +84,7 @@ const giftTutorialGB = async (userId: number) => {
     
     // ❌ 修正前: fetch('http://localhost:8000/gb/gb', {
     // ⭕ 修正後: 正しい部屋名「/gb/tutorial」に合わせる！
-    const res = await fetch('http://localhost:8000/gb/tutorial', {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/gb/tutorial`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ uid: userId })
@@ -104,7 +104,7 @@ const giftTutorialGB = async (userId: number) => {
     }
     setIsLoading(true);
     try {
-      const res = await fetch('http://localhost:8000/auth/signup', {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, grade, sid: studentId, pword: password })
@@ -188,7 +188,7 @@ const handleSubmit = async (e: React.FormEvent) => {
   try {
     // ❌ 修正前: fetch('http://localhost:8000/auth/login', {
     // ⭕ 修正後: バックエンドの「/signin」に名前を合わせる！
-    const res = await fetch('http://localhost:8000/auth/signin', {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/signin`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sid: studentId, pword: password })

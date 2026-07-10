@@ -57,7 +57,7 @@ export default function GameFlow() {
 
     try {
       console.log(`📡 チュートリアルガチャAPI呼び出し... UID: ${userId}`);
-      const res = await fetch('http://localhost:8000/gacha/tutorial', {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/gacha/tutorial`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ uid: userId })
