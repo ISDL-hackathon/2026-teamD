@@ -5,5 +5,5 @@ python-dotenv
 pydantic
 
 qrcode
-opencv-python
 google-genai
+pillow

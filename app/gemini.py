@@ -1,11 +1,15 @@
 from google import genai
+#エラー用
+import time
+from google.genai.errors import ServerError
+#
 from dotenv import load_dotenv
 import os
 
 load_dotenv()
 
 client = genai.Client(api_key=os.getenv("GEMINI_KEY"))
-model = "gemini-2.5-flash-lite"
+model="gemini-3.1-flash-lite"
 
 
 def create_question(prefix):
@@ -31,10 +35,22 @@ def create_question(prefix):
         - 出力は質問文のみ
         """
    
+    for _ in range(3):
+        try:
+            response = client.models.generate_content(
+                model=model,
+                contents=prompt
+            )
+            return response.text.strip()
+
+        except ServerError:
+            print("Gemini混雑中...3秒待機")
+            time.sleep(60)
     response = client.models.generate_content(
         model=model,
         contents=prompt
     )
 
     question = response.text.strip().replace('"', '').replace('「', '').replace('」', '')
+    
     return question

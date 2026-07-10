@@ -1,6 +1,6 @@
-from app import supabase
-from app.cruds.conversation import get_num_is_staying, select_user
+from app.cruds.conversation import get_num_is_staying, select_user, get_tar_id, get_grade, finish_conversation
 from app.gemini import create_question
+from app.cruds.gb import add_gb_fot_conversation
 from fastapi import APIRouter
 from pydantic import BaseModel
 
@@ -16,8 +16,29 @@ def conversation_start(request_data: ConversationRequest):
     data = init_conversation(uid)
     if data is None:
         return {"message": "あなたは1人だけです"}
+    question=create_question(data)
+    print(question)
+    return question
 
-    return create_question(data)
+#質問の答え入力
+@router.post("/input")
+def input_answer(request_data: ConversationRequest):
+    my_id=request_data.uid
+    my_grade = get_grade(my_id)
+    tar_info=get_tar_id(my_id)
+
+    tar_id = tar_info["tar_id"]
+    tar_grade = tar_info["tar_grade"]
+
+    print(tar_id, tar_grade)
+    add_gb_fot_conversation(my_id, my_grade, tar_id, tar_grade)
+    print("GB付与完了")
+    finish_conversation(my_id)
+    finish_conversation(tar_id)
+    print("is_con : false")
+    return True
+
+    
 
 
 def init_conversation(uid):

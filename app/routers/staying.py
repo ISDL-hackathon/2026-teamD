@@ -1,4 +1,3 @@
-from app import supabase
 from app.cruds.staying import get_staying_flag, change_staying_flag_db
 from fastapi import APIRouter
 from pydantic import BaseModel
