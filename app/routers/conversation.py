@@ -22,7 +22,11 @@ def conversation_start(request_data: ConversationRequest):
 
 def init_conversation(uid):
     if get_num_is_staying() > 1:
+        print("select users")
         data = select_user(uid)
+        if not data:
+            print("data none")
+            return None
         print(data)
         return data["prefix"]
     else:

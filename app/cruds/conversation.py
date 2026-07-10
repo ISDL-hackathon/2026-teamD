@@ -13,16 +13,55 @@ def get_num_is_staying():
     
 
 def select_user(uid):
-    try:
-        print("is_trueの中から一人選択")
-        response = (
-            supabase.table("users")
-            .select("uid, name, grade, rare, prefix")
-            .eq("is_stay", True)
+    # is_stay=True のユーザー取得（自分以外）
+    response = (
+        supabase.table("users")
+        .select("uid")
+        .eq("is_stay", True)
+        .execute()
+    )
+
+    users = [u for u in response.data if u["uid"] != uid]
+    print(f"users",users)
+    if not users:
+        return False
+    
+    users = get_serect_priority(users)
+    one_user = random.choice(users)
+
+    # そのユーザーの所持キャラ取得
+    response = (
+        supabase.table("user_character")
+        .select("characters(name, grade, prefix)")
+        .eq("uid", one_user["uid"])
+        .execute()
+    )
+    print(f"select a user", response.data)
+    return response.data
+    
+    
+#prefixもち優先
+def get_serect_priority(response):
+    print("prefixのみ")
+    if response.data["prefix"]:
+        pre_char = (
+            supabase.table("characters")
+            .select("uid, name, grade, prefix)")
+            .not_.is_("prefix", "null")
             .execute()
         )
-        users = [u for u in response.data if u["uid"] != uid]
-        return random.choice(users)
-    except Exception as e:
-        print(f"一人選択失敗: {e}")
+        print(f"character", pre_char)
+        return pre_char.data
+    else:
+        return response.data
+
+#prefixもち関係なく
+def get_serect_random(response):
+    characters = [
+        row["characters"]
+        for row in response.data
+        if row["characters"] is not None
+    ]
+    if not characters:
         return False
+    return random.choice(characters)
