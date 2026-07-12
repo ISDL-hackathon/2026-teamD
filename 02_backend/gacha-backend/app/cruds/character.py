@@ -84,6 +84,8 @@ def demo_get_character(cnt):
         .execute()
         )
         print(f"ガチャ確率アルゴリズム成功: ガチャ当選キャラID: {chosen_id}")
+        chosen_id = chosen_id.data
+        random.shuffle(chosen_id)
         return chosen_id.data
     except Exception as e:
         print(f"ガチャ排出失敗: {e}")
