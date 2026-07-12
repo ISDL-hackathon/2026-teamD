@@ -115,12 +115,12 @@ def get_grade(uid):
     return None
 
 #会話した相手のid
-def get_tar_id(tar_id):
+def get_tar_id(my_id):
     try:
         tar_info = (
             supabase.table("conversations")
             .select("tar_id, tar_grade")
-            .eq("tar_id", tar_id)
+            .eq("my_id", my_id)
             .eq("is_con", True)
             .execute()
         )
@@ -130,14 +130,16 @@ def get_tar_id(tar_id):
         return False   
 
 #会話終了  
-def finish_conversation(id):
+def finish_conversation(my_id, tar_id):
     try:
         response = (
             supabase.table("conversations")
             .update({
                 "is_con": False
             })
-            .eq("id", id)
+            .select("is_con")
+            .eq("my_id", my_id)
+            .eq("tar_id", tar_id)
             .execute()
         )
 

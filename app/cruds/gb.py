@@ -13,6 +13,7 @@ def update_gb(uid, gb):
             print("GBが0未満になるため、処理を中止します。")
             return False
         
+        print(f"new_gb:", new_gb)
         response = supabase.table("users").update({"gb": new_gb}).eq("uid", uid).execute()
         print("GB増減成功")
         return response.data

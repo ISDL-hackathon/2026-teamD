@@ -33,9 +33,8 @@ def input_answer(request_data: ConversationRequest):
     print(tar_id, tar_grade)
     add_gb_fot_conversation(my_id, my_grade, tar_id, tar_grade)
     print("GB付与完了")
-    finish_conversation(my_id)
-    finish_conversation(tar_id)
-    print("is_con : false")
+    check = finish_conversation(my_id, tar_id)
+    print(f"is_con :", check)
     return True
 
     
