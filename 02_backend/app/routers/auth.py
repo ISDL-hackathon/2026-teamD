@@ -1,9 +1,7 @@
-from app import supabase
 from fastapi import APIRouter
 from pydantic import BaseModel
-from app.cruds.auth import sign_up_user_to_db, sign_in_user_to_db, sign_out_user_to_db
 
-router = APIRouter()
+from app.cruds.auth import sign_up_user_to_db, sign_in_user_to_db, sign_out_user_to_db
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 

@@ -1,6 +1,5 @@
 from app import supabase
 
-
 #サインアップしたユーザをDBに登録する
 def sign_up_user_to_db(name, grade, sid, pword):
     print("ユーザー登録実装中")

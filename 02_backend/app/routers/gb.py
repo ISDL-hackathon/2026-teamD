@@ -1,26 +1,26 @@
-from app.cruds.gb import  update_gb
-
 from fastapi import APIRouter
 from pydantic import BaseModel
+
+from app.cruds.gb import  update_gb
 
 router = APIRouter(prefix="/gb", tags=["gb"])
 
 class GachaRequest(BaseModel):
     uid: int
 
-@router.post("/tutorial")
+@router.post("/gb")
 def tutorial_gb_endpoint(request_data: GachaRequest):
     uid = request_data.uid
     print(f"チュートリアルGB配布発生 UID: {uid}")
     
-    result = get_16gb(uid)
+    result = get_tutorial(uid)
     if not result:
         return {"status": "error", "message": "チュートリアルGB配布に失敗しました"}
-    print(f"result:")
+        
     return {"status": "success", "message": "チュートリアルGB配布成功"}
 
 #チュートリアルで16GB配布
-def get_16gb(uid):
+def get_tutorial(uid):
     print("チュートリアルGB配布実装中")
     try:
         update_gb(uid, 16)
@@ -29,15 +29,4 @@ def get_16gb(uid):
     except Exception as e:
         print(f"チュートリアルGB配布失敗: {e}")
         return False
-
-
-
-# #gbの増減
-# def get_gb(uid, gb):
-#     print("gbの増減")
-#     try:
-#         update_gb(uid,gb)
-#         return True
-#     except Exception as e:
-#         print(f"GB配布失敗: {e}")
-#         return False
+    
