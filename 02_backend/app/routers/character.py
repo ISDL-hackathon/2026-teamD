@@ -17,6 +17,7 @@ def get_owned_character(request_data: CharacterRequest):
     uid = request_data.uid
     print(f"キャラクター詳細のトップ画面  uid:", uid)
     owner_character = get_owned_character_db(uid)
+    print(owner_character)
     if not owner_character:
         print("所持キャラはいません")
         return None

@@ -44,10 +44,9 @@ def draw_gacha_endpoint(request_data: DrawRequest):
 
 
 
-@router.post("kuranuki-gatya")
 
 #チュートリアルでイライラした倉貫さんを排出
-def get_kuranuki_to_user(uid, id=1):
+def get_kuranuki_to_user(uid, id=10):
     print("倉貫さん排出実装")
     try:
         #所持キャラ追加        
