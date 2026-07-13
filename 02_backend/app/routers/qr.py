@@ -15,6 +15,17 @@ class QrShowRequest(BaseModel):
 class QrScanRequest(BaseModel):
     data: str
 
+class EnterRequest(BaseModel):
+    uid : int
+
+@router.post("/enter")
+def enter():
+    #URLはまた変更
+    url = "http://127.0.0.1:8000/staying/start"
+    img = qrcode.make(url)
+    img.save("qrcode_image/enter_qr.png")
+
+
 @router.post("/showQR")
 def create_qr(request_data: QrShowRequest):
     uid = request_data.uid
