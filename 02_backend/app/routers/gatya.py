@@ -1,4 +1,3 @@
-from app import supabase
 from fastapi import APIRouter
 from pydantic import BaseModel
 

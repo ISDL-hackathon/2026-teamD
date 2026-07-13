@@ -1,9 +1,11 @@
-from contextlib import asynccontextmanager
 from . import SUPABASE_URL, SUPABASE_KEY
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import character, gatya#staying, conversation, qr, auth,gb
+
+from contextlib import asynccontextmanager
+
+from app.routers import character, gatya, staying, conversation, qr, auth, gb
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -33,11 +35,11 @@ app.add_middleware(
 )
 
 app.include_router(gatya.router)
-#app.include_router(auth.router)
-#app.include_router(gb.router)
-# app.include_router(staying.router)
-# app.include_router(conversation.router)
-# app.include_router(qr.router)
+app.include_router(auth.router)
+app.include_router(gb.router)
+app.include_router(staying.router)
+app.include_router(conversation.router)
+app.include_router(qr.router)
 app.include_router(character.router)
 
 

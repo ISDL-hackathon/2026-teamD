@@ -1,8 +1,10 @@
+from fastapi import APIRouter
+from pydantic import BaseModel
+
 from app.cruds.conversation import get_num_is_staying, select_user, get_tar_id, get_grade, finish_conversation
 from app.gemini import create_question
 from app.cruds.gb import add_gb_fot_conversation
-from fastapi import APIRouter
-from pydantic import BaseModel
+
 
 router = APIRouter(prefix="/staying", tags=["staying"])
 

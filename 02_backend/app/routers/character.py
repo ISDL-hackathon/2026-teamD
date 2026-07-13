@@ -3,7 +3,6 @@ from pydantic import BaseModel
 
 from app.cruds.character import get_character_profile_db, get_owned_character_db
 
-
 router = APIRouter(prefix="/character", tags=["character"])
 
 class CharacterRequest(BaseModel):
