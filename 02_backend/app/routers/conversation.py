@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from app.cruds.conversation import get_num_is_staying, select_user, get_tar_id, get_grade, finish_conversation
+from app.cruds.conversation import get_num_is_staying, select_user, get_tar_id, get_grade, finish_conversation#prefix_characters
 from app.gemini import create_question
 from app.cruds.gb import add_gb_fot_conversation
 
@@ -39,18 +39,20 @@ def input_answer(request_data: ConversationRequest):
     print(f"is_con :", check)
     return True
 
-    
-
-
 def init_conversation(uid):
     if get_num_is_staying() > 1:
         print("select users")
-        data = select_user(uid)
-        if not data:
+        char_data = select_user(uid)
+        #char_data = prefix_characters(char_data)
+        if not char_data:
             print("data none")
             return None
-        print(data)
-        return data["prefix"]
+        #character = char_data[0]["character"]
+
+        print(
+            f"prefix_name : {char_data['prefix']}{char_data['name']}"
+        )
+        return char_data["prefix"]
     else:
         print("あなたは1人だけです")
         return None

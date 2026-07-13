@@ -31,6 +31,7 @@ def change_staying_flag_db(uid: int, is_stay: bool):
 
 def save_start_time(uid, start_time):
     try:
+
         supabase.table("users").update({
             "stay_start_time": start_time.isoformat()
             }).eq("uid", uid).execute()
@@ -44,7 +45,6 @@ def get_start_time(uid):
         start_time = datetime.fromisoformat(
             response.data["stay_start_time"]
         )
-        print(f"start time :", start_time)
         return start_time
     except Exception as e:
         print(f"スタート時間の取り出し失敗: {e}")
