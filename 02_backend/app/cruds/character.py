@@ -4,7 +4,7 @@ from app import supabase
 def get_character_by_id(uid, cid):
     print("キャラクター排出実装")
     try:
-        response = supabase.table("characters").select("*").eq("id", cid).single().execute()
+        response = supabase.table("characters").select("*").eq("cid", cid).single().execute()
         print("キャラクター取得成功")       
 
         add_character_to_user(uid, cid)
@@ -79,13 +79,13 @@ def get_character_rate(cnt):
     import random
     print("ガチャ確率アルゴリズム実装")
     try:
-        response = supabase.table("characters").select("id", "rate").execute()
+        response = supabase.table("characters").select("cid", "rate").execute()
         char_list=response.data
         if not char_list:
             print("エラー: キャラクターデータがDBにありません。")
             return False
         
-        char_ids = [char["id"] for char in char_list]
+        char_ids = [char["cid"] for char in char_list]
         rates = [char["rate"] for char in char_list]
 
         chosen_id = random.choices(char_ids, weights=rates, k=cnt)
@@ -104,7 +104,7 @@ def demo_get_character(cnt):
     try:
         chosen_id = (
         supabase.table("characters")
-        .select("id")
+        .select("cid")
         .in_("id", list(range(10, 18)))
         .execute()
         )
