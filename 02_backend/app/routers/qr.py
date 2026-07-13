@@ -23,7 +23,7 @@ def enter():
     #URLはまた変更
     url = "http://127.0.0.1:8000/staying/start"
     img = qrcode.make(url)
-    img.save("qrcode_image/enter_qr.png")
+    img.save("qr_img/enter_qr.png")
 
 
 @router.post("/showQR")
@@ -37,7 +37,7 @@ def create_qr(request_data: QrShowRequest):
 
     img = qrcode.make(data)
     #仮
-    img.save("qr_images/qr.png")
+    img.save("qr_img/show_my_qr.png")
 
     # 画像をメモリ上に保存
     buffer = io.BytesIO()
@@ -46,7 +46,7 @@ def create_qr(request_data: QrShowRequest):
 
     return StreamingResponse(
         buffer,
-        media_type="image/png"
+        media_type="img/png"
     )
 
 @router.post("/scanQR")

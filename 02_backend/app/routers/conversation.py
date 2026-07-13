@@ -43,15 +43,10 @@ def init_conversation(uid):
     if get_num_is_staying() > 1:
         print("select users")
         char_data = select_user(uid)
-        #char_data = prefix_characters(char_data)
         if not char_data:
             print("data none")
             return None
-        #character = char_data[0]["character"]
-
-        print(
-            f"prefix_name : {char_data['prefix']}{char_data['name']}"
-        )
+        print(f"prefix_name : {char_data['prefix']}{char_data['name']}")
         return char_data["prefix"]
     else:
         print("あなたは1人だけです")
