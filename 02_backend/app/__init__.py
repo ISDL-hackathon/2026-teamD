@@ -7,8 +7,7 @@ load_dotenv()
 
 SUPABASE_URL: str = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY: str = os.environ.get("SUPABASE_KEY")
-print("URL =", SUPABASE_URL)
-print("KEY =", SUPABASE_KEY[:10] if SUPABASE_KEY else None)
+
 if not SUPABASE_URL or not SUPABASE_KEY:
     print("Supabaseの環境変数が設定されていません。")
 
