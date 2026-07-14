@@ -108,11 +108,6 @@ def save_conversation(uid, tar_id):
         print(f"会話保存失敗: {e}")
         return False
 
-def get_grade(uid):
-    grade = supabase.table("users").select("grade").eq("uid", uid).execute()
-    if grade:
-        return grade
-    return None
 
 #会話した相手のid
 def get_tar_id(my_id):

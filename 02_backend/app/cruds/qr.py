@@ -1,15 +1,9 @@
 from app import supabase
 
-def get_grade(uid):
-    grade = supabase.table("users").select("grade").eq("uid", uid).execute()
-    if grade:
-        return grade
-    return None
-
 def get_mission_id(uid):
     mission_id = supabase.table("conversations").select("mission_id").eq("my_id", uid).execute()
     if mission_id:
-        return mission_id
+        return mission_id.data[0]["mission_id"]
     return None
 
 # QRとDB照合
