@@ -117,7 +117,6 @@ def demo_get_character(cnt):
         return False
 
 
-#キャラ選択トップに表示するデータ
 def get_owned_character_db(uid):
     try:
         response = (
@@ -125,19 +124,26 @@ def get_owned_character_db(uid):
             .table("user_character")
             .select("""
                 cid,
-                characters (
+                cnt,
+                characters!user_character_cid_fkey(
+                    cid,
                     name,
                     grade,
-                    img1
+                    img1,
+                    rare
                 )
-             """)
+            """)
             .eq("uid", uid)
             .execute()
         )
+
+        print(response.data)
+
         for character in response.data:
             print(character["characters"]["name"])
             print(character["characters"]["grade"])
             print(character["characters"]["img1"])
+
         return response.data
 
     except Exception as e:
