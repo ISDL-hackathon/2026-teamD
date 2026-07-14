@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import TitleScreen, { RegisterScreen, LoginScreen } from "../../components/ui/tutorial/screens";
+import TitleScreen, { RegisterScreen, LoginScreen } from "./_components/screens";
 
 export default function GameFlow() {
   const [step, setStep] = useState<'TITLE' | 'REGISTER' | 'LOGIN' | 'SLIDESHOW' | 'GACHA_RESULT'>('TITLE');
