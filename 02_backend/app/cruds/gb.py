@@ -47,7 +47,7 @@ def get_user_gb(uid):
         print(f"現在のgb所得失敗: {e}")
         return False    
 
-def calc_exchange_gb(my_grade, tar_grade):
+def calc_conversation_gb(my_grade, tar_grade):
     if my_grade == tar_grade:
         return 32
     else:
