@@ -29,16 +29,29 @@ app = FastAPI(lifespan=lifespan)
 
 
 
+# app.add_middleware(
+#     #後々変更
+#     CORSMiddleware,
+#     #どのサイトからのアクセスを許すか
+#     allow_origins=["*"],
+#     #クッキーやログイン情報などの送信を許すか
+#     allow_credentials=True,
+#     #どんな操作（取得、追加、削除など）を許すか
+#     allow_methods=["*"],
+#     #どんな情報（ヘッダー）の送信を許すか
+#     allow_headers=["*"],
+# )
+
+# ⭕️ 修正後の設定例
 app.add_middleware(
-    #後々変更
     CORSMiddleware,
-    #どのサイトからのアクセスを許すか
-    allow_origins=["*"],
-    #クッキーやログイン情報などの送信を許すか
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        # 必要に応じて、今後デプロイするフロントのURLもここに追加    ,
+    ],
     allow_credentials=True,
-    #どんな操作（取得、追加、削除など）を許すか
     allow_methods=["*"],
-    #どんな情報（ヘッダー）の送信を許すか
     allow_headers=["*"],
 )
 
