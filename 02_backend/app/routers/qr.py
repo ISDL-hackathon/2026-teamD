@@ -27,9 +27,21 @@ def enter():
     img = qrcode.make(url)
     img.save("qr_img/enter_qr.png")
 
+class EnterRequest(BaseModel):
+    uid : int
+
+@router.post("/enter")
+def enter():
+    #URLはまた変更
+    url = "http://127.0.0.1:8000/staying/start"
+    img = qrcode.make(url)
+    img.save("qr_img/enter_qr.png")
+
+
 @router.post("/showQR")
 def create_qr(request_data: QrShowRequest):
     uid = request_data.uid
+
     user_data = conversation_show_qr_info(uid)
     json_data = json.dumps(user_data)
     qr_data = create_qr_image(json_data)

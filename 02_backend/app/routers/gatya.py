@@ -2,6 +2,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from app.cruds.character import add_character_to_user, get_character_by_id, get_character_rate, demo_get_character
+from app.cruds.gb import get_user_gb
 from app.cruds.gb import update_gb
 
 
@@ -34,17 +35,18 @@ def draw_gacha_endpoint(request_data: DrawRequest):
     cnt = request_data.cnt
 
     print(f"フロントから呼び出されました！ UID: {uid}, cnt: {cnt}")
-    
-    result = get_character_from_user(uid, cnt)
-    
-    if not result:
-        return {"status": "error", "message": "ガチャ排出に失敗しました"}
+    consume_gb = 16 * cnt
+    if get_user_gb(uid) >= consume_gb :
+        update_gb(uid, -(consume_gb))
+        result = get_character_from_user(uid, cnt)
+    else: 
+        print("GBが足りません")
+        result=False
         
     return {"status": "success", "character": result}
 
 
 
-@router.post("kuranuki-gatya")
 
 #チュートリアルでイライラした倉貫さんを排出
 def get_kuranuki_to_user(uid, id=10):
@@ -64,9 +66,9 @@ def get_character_from_user(uid, cnt):
     
     try:        
         #デモ
-        #chosen_cid=demo_get_character(cnt)
+        chosen_cid=demo_get_character(cnt)
         #本番
-        chosen_cid=get_character_rate(cnt)
+        #chosen_cid=get_character_rate(cnt)
         if not chosen_cid:
             return False
 
@@ -75,6 +77,7 @@ def get_character_from_user(uid, cnt):
             result.append(get_character_by_id(uid, cid))
             print("ガチャで排出成功")
         
+
         consume_gb = 16 * cnt
         update_gb(uid, -consume_gb)
         return result

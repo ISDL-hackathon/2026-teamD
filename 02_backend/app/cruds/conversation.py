@@ -11,65 +11,108 @@ def get_num_is_staying():
         print(f"人数カウント処理失敗: {e}")
         return False    
     
-
 def select_user(uid):
-    # is_stay=True のユーザー取得（自分以外）
+    # 自分以外で滞在中のユーザー取得
     response = (
-        supabase.table("users")
-        .select("uid, sid, grade")
+        supabase
+        .table("users")
+        .select("""
+            uid,
+            subject_uid,
+            grade,
+            characters(
+                cid,
+                name,
+                grade,
+                prefix
+            )
+        """)
         .eq("is_stay", True)
+        .neq("uid", uid)
         .execute()
     )
-    
-    print(f"true users",response.data)
-    users = [u for u in response.data if u["uid"] != uid]
-    print(f"users",users)
+
+    users = response.data
     if not users:
         return False
 
-    #会話相手
-    tar_user = random.choice(users)
-    print("conversation user :", tar_user)
+    # prefixを持つキャラを所持しているユーザーだけ抽出
+    prefix_users = []
+    for user in users:
+        character = user["characters"]
+        if character is None:
+            continue
+        if character["prefix"] is not None:
+            prefix_users.append(user)
+
+    print("\n===== prefix持ちユーザー =====")
+    for user in prefix_users:
+        char = user["characters"]
+
+        print(
+            f"uid: {user['uid']} | "
+            f"character: {char['prefix']}{char['name']} "
+            f"(cid:{char['cid']})"
+        )
+    if not prefix_users:
+        return False
+
+    # prefix持ちユーザーから会話相手選択
+    tar_user = random.choice(prefix_users)
+
+    print("\n===== 選択された会話相手 =====")
+    print(
+        f"uid: {tar_user['uid']}\n"
+        f"subject_uid: {tar_user['subject_uid']}\n"
+        f"grade: {tar_user['grade']}"
+    )
+
+    # 会話保存
     save_conversation(uid, tar_user)
 
-    #自分の所持キャラ
+    # 使用するキャラクター
+    selected_character = tar_user["characters"]
+    print("\n===== 使用キャラクター =====")
+    print(
+        f"cid: {selected_character['cid']}\n"
+        f"name: {selected_character['name']}\n"
+        f"grade: {selected_character['grade']}\n"
+        f"prefix: {selected_character['prefix']}"
+    )
+    return selected_character
+
+def get_prefix_users(uid):
     response = (
-        supabase.table("user_character")
-        .select("characters(id, sid, name, grade, prefix)")
-        .eq("uid", uid)
+        supabase
+        .table("users")
+        .select("""
+            uid,
+            subject_uid,
+            grade,
+            characters(
+                cid,
+                name,
+                grade,
+                prefix
+            )
+        """)
+        .eq("is_stay", True)
+        .neq("uid", uid)
         .execute()
     )
 
-    characters = []
+    prefix_users = []
 
-    for row in response.data:
-        character = row["characters"]
+    for user in response.data:
+        character = user["characters"]
+
         if character is None:
             continue
-        characters.append(character)
 
+        if character["prefix"] is not None:
+            prefix_users.append(user)
 
-    if not characters:
-        return False
-
-
-    # prefix持ちだけ抽出
-    prefix_characters = [
-        character
-        for character in characters
-        if character["prefix"] is not None
-    ]
-
-
-    if prefix_characters:
-        selected_character = random.choice(prefix_characters)
-    else:
-        selected_character = random.choice(characters)
-
-
-    print("selected character:", selected_character)
-
-    return selected_character
+    return prefix_users
 
 #会話内容DB保存
 def save_conversation(uid, tar_id):

@@ -12,6 +12,14 @@ export default function GachaPage() {
   const [gachaType, setGachaType] = useState<1 | 8>(1);
   const [resultImageIndex, setResultImageIndex] = useState<number>(2);
   const [isMoreOpen, setIsMoreOpen] = useState(false);
+  const [loading, setLoading] = useState(false); // 通信中のガード用
+
+  const getLoginUid = () => {
+    if (typeof window !== "undefined") {
+      return Number(localStorage.getItem("loginUid") || "1");
+    }
+    return 1;
+  };
 
   // ガチャボタン（1回 / 8回）を押したとき
   const handleGachaStart = (type: 1 | 8) => {
@@ -20,9 +28,42 @@ export default function GachaPage() {
     setStep("CONFIRM");
   };
 
-  // ダイアログで「はい」を押したとき
-  const handleConfirmYes = () => {
-    setStep("VIDEO");
+  // 💡 ダイアログで「はい」を押したときに、バックエンドAPIを叩いてDBに保存させる！
+  const handleConfirmYes = async () => {
+    if (loading) return;
+    setLoading(true);
+
+    const uid = getLoginUid();
+
+    try {
+      // 🚀 バックエンドのガチャAPIをフェッチ！（APIエンドポイントが異なる場合はURLを適宜修正してください）
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/gacha/draw`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          uid: uid,
+          cnt: gachaType, // 1回または8回のカウントを渡す
+        }),
+      });
+
+      if (response.ok) {
+        console.log("🎉 ガチャキャラが正常にDBに保存または更新されました！");
+        // 通信が成功したらガチャ動画演出に進む
+        setStep("VIDEO");
+      } else {
+        console.error("ガチャの保存に失敗しました(サーバーエラー)");
+        alert("ガチャの処理中にエラーが発生しました。");
+        setStep("BASE");
+      }
+    } catch (error) {
+      console.error("ネットワークエラーによりガチャAPIを実行できませんでした:", error);
+      alert("通信エラーが発生しました。");
+      setStep("BASE");
+    } finally {
+      setLoading(false);
+    }
   };
 
   // 動画演出が終了したとき
@@ -59,13 +100,13 @@ export default function GachaPage() {
       {/* 画面アスペクト比を維持するためのコンテナ */}
       <main className="relative flex h-full w-full max-w-[430px] flex-col overflow-hidden bg-black shadow-[0_0_30px_rgba(0,0,0,0.8)]">
         
-        {/* --- STEP 1: 通常のガチャトップ（背景画像の上に透明ボタン） --- */}
+        {/* --- STEP 1: 通常のガチャトップ --- */}
         {step === "BASE" && (
           <div 
             className="relative h-full w-full bg-cover bg-center"
             style={{ backgroundImage: "url('/gatya-home.png')" }}
           >
-            {/* 1回ガチャ 16GB ボタン用透明ボックス */}
+            {/* 1回ガチャ */}
             <button
               onClick={() => handleGachaStart(1)}
               className="absolute left-[6%] bottom-[16%] h-[12%] w-[42%] bg-transparent active:bg-white/10 rounded-[20px] transition-colors z-10"
@@ -73,7 +114,7 @@ export default function GachaPage() {
               aria-label="1回ガチャ"
             />
 
-            {/* 8回ガチャ 128GB ボタン用透明ボックス */}
+            {/* 8回ガチャ */}
             <button
               onClick={() => handleGachaStart(8)}
               className="absolute right-[6%] bottom-[16%] h-[12%] w-[42%] bg-transparent active:bg-white/10 rounded-[20px] transition-colors z-10"
@@ -81,67 +122,57 @@ export default function GachaPage() {
               aria-label="8回ガチャ"
             />
 
-            {/* 🚨 追加：最下部ナビゲーション用の透明クリックエリア（5分割） 
-              画面最下部の高さ20ピクセル（h-20）程度に重なるボタン群です。
-            */}
+            {/* 最下部ナビゲーション */}
             <nav className="absolute inset-x-0 bottom-0 h-20 bg-transparent flex z-20">
-              
-              {/* 1. キャラボタン */}
               <button 
                 onClick={() => router.push("/character")} 
                 className="flex-1 bg-transparent active:bg-white/10"
                 aria-label="キャラ"
               />
-
-              {/* 2. ガチャボタン（現在地なので画面リフレッシュ、または何もしない） */}
               <button 
                 onClick={() => setStep("BASE")} 
                 className="flex-1 bg-transparent active:bg-white/10"
                 aria-label="ガチャ"
               />
-
-              {/* 3. ホームボタン（ダッシュボードへ戻る） */}
               <button 
                 onClick={() => router.push("/dashboard")} 
                 className="flex-1 bg-transparent active:bg-white/10"
                 aria-label="ホーム"
               />
-
-              {/* 4. 交換ボタン */}
               <button 
                 onClick={() => router.push("/exchange")} 
                 className="flex-1 bg-transparent active:bg-white/10"
                 aria-label="交換"
               />
-
-              {/* 💡 5. その他ボタン: ルーター遷移ではなく、ステートを true にしてポップアップをその場で開く！ */}
               <button 
                 onClick={() => setIsMoreOpen(true)} 
                 className="flex-1 bg-transparent active:bg-white/10"
                 aria-label="その他"
               />
-
             </nav>
           </div>
         )}
 
-        {/* --- STEP 2: 確認ダイアログ（画像の上に透明ボタン） --- */}
+        {/* --- STEP 2: 確認ダイアログ --- */}
         {step === "CONFIRM" && (
           <div className="relative h-full w-full bg-black">
             <img src={confirmImg} alt="確認ダイアログ" className="h-full w-full object-contain" />
             
-            {/* 2つのボタンを囲むコンテナ */}
             <div className="absolute inset-x-0 bottom-[19%] flex justify-center gap-[10%] px-[15%]">
-              {/* 「はい」用透明ボタン */}
+              {/* 「はい」用ボタン（APIをキック！） */}
               <button 
                 onClick={handleConfirmYes} 
-                className="h-12 w-28 bg-transparent active:bg-black/10 rounded-lg transition-colors"
+                disabled={loading}
+                className="h-12 w-28 bg-transparent active:bg-black/10 rounded-lg transition-colors flex items-center justify-center text-white"
                 style={{ cursor: "pointer" }}
                 aria-label="はい"
-              />
-              {/* 「いいえ」用透明ボタン */}
+              >
+                {loading && "通信中..."}
+              </button>
+              {/* 「いいえ」用ボタン */}
               <button 
                 onClick={() => setStep("BASE")} 
+                disabled={loading}
                 className="h-12 w-28 bg-transparent active:bg-black/10 rounded-lg transition-colors"
                 style={{ cursor: "pointer" }}
                 aria-label="いいえ"
@@ -163,15 +194,15 @@ export default function GachaPage() {
           </div>
         )}
 
-        {/* --- STEP 4: 結果画像演出（タップで切り替え） --- */}
+        {/* --- STEP 4: 結果画像演出 --- */}
         {step === "RESULT_IMAGE" && (
-  <div 
-    onClick={handleResultImageTap} 
-    className="trigger-full-flash h-full w-full bg-black cursor-pointer relative" // 👈 trigger-full-flash を追加！
-  >
-    <img src={resultImg} alt="ガチャ結果" className="h-full w-full object-contain" />
-  </div>
-)}
+          <div 
+            onClick={handleResultImageTap} 
+            className="trigger-full-flash h-full w-full bg-black cursor-pointer relative"
+          >
+            <img src={resultImg} alt="ガチャ結果" className="h-full w-full object-contain" />
+          </div>
+        )}
 
         {/* --- STEP 5: 最終まとめ画像 --- */}
         {step === "FINAL_SUMMARY" && (
@@ -181,7 +212,6 @@ export default function GachaPage() {
         )}
 
       </main>
-      {/* 💡 画面の最前面（mainの外側）に配置することで、背景画像（ガチャ画面）の上に綺麗に重なります */}
       <MoreModal isOpen={isMoreOpen} onClose={() => setIsMoreOpen(false)} />
     </div>
   );

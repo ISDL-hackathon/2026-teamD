@@ -17,13 +17,14 @@ def change_staying_flag_db(uid: int, is_stay: bool):
 
 def save_start_time(uid, start_time):
     try:
+
         supabase.table("users").update({
             "stay_start_time": start_time.isoformat()
             }).eq("uid", uid).execute()
     except Exception as e:
         print(f"スタート時間の記録失敗: {e}")
         return False
-       
+
 def end_staying_time(uid):
     print("stay_start_timeをNULLにします")
 

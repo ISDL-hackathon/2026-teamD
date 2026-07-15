@@ -105,19 +105,32 @@ def demo_get_character(cnt):
         chosen_id = (
         supabase.table("characters")
         .select("cid")
-        .in_("cid", list(range(10, 18)))
+
+        .in_("cid", list(range(1, 8)))
         .execute()
         )
         print(f"ガチャ確率アルゴリズム成功: ガチャ当選キャラID: {chosen_id}")
-        chosen_id = chosen_id.data
-        random.shuffle(chosen_id)
-        return chosen_id.data
+
+       # 1. Supabaseからデータを取得
+        raw_list = response.data  # [{'cid': 10}, {'cid': 11}, ...]
+        
+        # 2. 数値だけのリストに変換
+        cid_list = [item["cid"] for item in raw_list]
+        
+        # 3. シャッフルする
+        random.shuffle(cid_list)
+        
+        # 🚨 【超重要】ガチャの回数（cnt）分だけ切り出す！
+        # 例: cntが1なら1体だけ、cntが8なら8体分（足りなければある分だけ）
+        final_list = cid_list[:cnt]
+        
+        return final_list  # ✅ 切り出したリストを返す
+        
     except Exception as e:
         print(f"ガチャ排出失敗: {e}")
         return False
 
 
-#キャラ選択トップに表示するデータ
 def get_owned_character_db(uid):
     try:
         response = (
@@ -125,19 +138,27 @@ def get_owned_character_db(uid):
             .table("user_character")
             .select("""
                 cid,
-                characters (
+                cnt,
+                characters!user_character_cid_fkey(
+                    cid,
                     name,
                     grade,
-                    img1
+                    img1,
+                    rare
                 )
-             """)
+            """)
             .eq("uid", uid)
             .execute()
         )
+
+
+        print(response.data)
+
         for character in response.data:
             print(character["characters"]["name"])
             print(character["characters"]["grade"])
             print(character["characters"]["img1"])
+
         return response.data
 
     except Exception as e:
@@ -169,12 +190,8 @@ def get_character_profile_db(uid, cid):
             .eq("cid", cid)
             .execute()
         )
-        for character in response.data:
-            print(character["characters"]["name"])
-            print(character["characters"]["grade"])
-            print(character["characters"]["img1"])
+        print(response.data)
         return response.data
-
     except Exception as e:
         print(f"所持キャラクター取得失敗: {e}")
         return False

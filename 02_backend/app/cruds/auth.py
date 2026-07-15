@@ -1,11 +1,11 @@
-from app import supabase
+from app import supabase_old
 
 #サインアップしたユーザをDBに登録する
 def sign_up_user_to_db(name, grade, sid, pword):
     print("ユーザー登録実装中")
     try:
         #ユーザ登録
-        response = supabase.table("users").insert({
+        response = supabase_old.table("users").insert({
             "name": name,
             "grade": grade,
             "sid": sid,
@@ -21,7 +21,7 @@ def sign_up_user_to_db(name, grade, sid, pword):
 def sign_in_user_to_db(sid, pword):
     print("ユーザーログイン実装中")
     try:
-        response = supabase.table("users").select("*").eq("sid", sid).eq("pword", pword).execute()
+        response = supabase_old.table("users").select("*").eq("sid", sid).eq("pword", pword).execute()
         print("ユーザーログイン成功")
         return response.data
     except Exception as e:
