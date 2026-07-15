@@ -6,9 +6,9 @@ from supabase import create_client, Client
 load_dotenv()
 
 SUPABASE_URL: str = os.environ.get("SUPABASE_URL")
-SUPABASE_KEY: str = os.environ.get("SUPABASE_KEY")
-if not SUPABASE_URL or not SUPABASE_KEY:
+SUPABASE_ANON_KEY: str = os.environ.get("SUPABASE_ANON_KEY")
+if not SUPABASE_URL or not SUPABASE_ANON_KEY:
     print("Supabaseの環境変数が設定されていません。")
 
 
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)

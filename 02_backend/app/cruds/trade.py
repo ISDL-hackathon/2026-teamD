@@ -198,9 +198,18 @@ def get_my_flag_tar_flag(uid):
 
 def add_trade_character(uid, cid):
     try:
-        # ★追加：本当に持っているか確認
-        if not check_have_character(uid, cid):
-            print("このキャラを所持していません")
+        # 交換相手取得
+        tar_uid = get_opponent_uid(uid)
+
+        if tar_uid is None:
+            print("交換相手なし")
+            return False
+
+
+        # ★追加
+        # 相手から交換可能なキャラか確認
+        if not check_trade_character(tar_uid, uid, cid):
+            print("交換できないキャラです")
             return False
         
         # 交換相手取得
@@ -258,7 +267,7 @@ def add_trade_character(uid, cid):
         print(f"キャラ登録失敗: {e}")
         return False
     
-    
+
 def execute_trade(trade_id):
     try:
         # trade取得
@@ -281,15 +290,14 @@ def execute_trade(trade_id):
         my_cid = trade["my_cid"]
         tar_cid = trade["tar_cid"]
 
-        # ★追加：本当に持っているか確認
-        if not check_have_character(my_uid, my_cid):
-            print("このキャラを所持していません")
-            return False
+        if not check_trade_character(my_uid, tar_uid, my_cid):
+            print("不正な交換キャラ")
+            return None
 
-        # ★追加：本当に持っているか確認
-        if not check_have_character(tar_uid, tar_cid):
-            print("このキャラを所持していません")
-            return False
+        if not check_trade_character(my_uid, tar_uid, tar_cid):
+            print("不正な交換キャラ")
+            return None
+        
         # 削除
         remove_character(my_uid, my_cid)
         remove_character(tar_uid, tar_cid)
@@ -412,23 +420,23 @@ def add_character(uid, cid):
 
     return True
 
-def check_have_character(uid, cid):
+def check_trade_character(my_uid, tar_uid, cid):
     try:
-        result = (
-            supabase
-            .table("user_character")
-            .select("cnt")
-            .eq("uid", uid)
-            .eq("cid", cid)
-            .execute()
-        )
+        # 交換可能キャラ取得
+        characters = select_trade_characters(my_uid, tar_uid)
 
-        if not result.data:
+        if characters is None:
             return False
 
-        # cntが1以上なら所持
-        return result.data[0]["cnt"] > 0
+        # 候補のcid一覧
+        trade_cids = {
+            char["cid"]
+            for char in characters
+        }
+
+        # 候補内ならOK
+        return cid in trade_cids
 
     except Exception as e:
-        print(f"所持確認失敗:{e}")
+        print(f"交換可能キャラ確認失敗:{e}")
         return False
