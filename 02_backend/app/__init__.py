@@ -7,7 +7,7 @@ load_dotenv()
 
 SUPABASE_URL: str = os.environ.get("SUPABASE_URL")
 
-SUPABASE_ANON_KEY: str = os.environ.get("SUPABASE_KEY")
+SUPABASE_ANON_KEY: str = os.environ.get("SUPABASE_ANON_KEY")
 
 SUPABASE_URL_old: str = os.environ.get("SUPABASE_URL_old")
 SUPABASE_KEY_old: str = os.environ.get("SUPABASE_KEY_old")
