@@ -105,7 +105,8 @@ def demo_get_character(cnt):
         chosen_id = (
         supabase.table("characters")
         .select("cid")
-        .in_("cid", list(range(10, 18)))
+
+        .in_("cid", list(range(1, 8)))
         .execute()
         )
         print(f"ガチャ確率アルゴリズム成功: ガチャ当選キャラID: {chosen_id}")
@@ -136,6 +137,7 @@ def get_owned_character_db(uid):
             .eq("uid", uid)
             .execute()
         )
+
 
         print(response.data)
 
@@ -175,12 +177,8 @@ def get_character_profile_db(uid, cid):
             .eq("cid", cid)
             .execute()
         )
-        for character in response.data:
-            print(character["characters"]["name"])
-            print(character["characters"]["grade"])
-            print(character["characters"]["img1"])
+        print(response.data)
         return response.data
-
     except Exception as e:
         print(f"所持キャラクター取得失敗: {e}")
         return False
