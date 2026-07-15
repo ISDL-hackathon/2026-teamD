@@ -13,8 +13,6 @@ from app.cruds.character import (
 
 router = APIRouter(prefix="/character", tags=["character"])
 
-class CharacterRequest(BaseModel):
-
 class CharacterProfileRequest(BaseModel):
     cid: int
 
