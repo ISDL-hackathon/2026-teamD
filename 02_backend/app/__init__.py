@@ -6,7 +6,6 @@ from supabase import create_client, Client
 load_dotenv()
 
 SUPABASE_URL: str = os.environ.get("SUPABASE_URL")
-<<<<<<< HEAD
 SUPABASE_KEY: str = os.environ.get("SUPABASE_KEY")
 
 SUPABASE_URL_old: str = os.environ.get("SUPABASE_URL_old")
