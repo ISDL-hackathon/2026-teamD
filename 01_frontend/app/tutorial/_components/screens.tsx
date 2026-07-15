@@ -101,16 +101,27 @@ const giftTutorialGB = async (userId: number) => {
     }
     setIsLoading(true);
     try {
+      // 💡 変更点: バックエンドが求める完璧なスキーマに合わせて、すべて文字列(String)で送信
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, grade, sid: studentId, pword: password })
+        body: JSON.stringify({ 
+          name: String(name),
+          grade: String(grade),
+          sid: String(studentId), // ⭕️ 文字列型にして sid として送る
+          pword: String(password) // ⭕️ 文字列型にして pword として送る
+        })
       });
       
       if (res.ok) {
         const data = await res.json();
         console.log("📡 ユーザー登録成功:", data);
-        const userId = data.user_id || 1;
+        
+        // 💡 登録成功時、この学籍番号（studentId）を本番のUIDとしてローカルストレージに記憶
+        localStorage.setItem('loginUid', String(studentId));
+        
+        // アプリ内は数値のID（なければstudentIdを数値化）で運用
+        const userId = data.user_id || Number(studentId);
         
         await giftTutorialGB(userId);
         alert("アカウント登録 ＆ 16GBの付与に成功しました！");
@@ -176,47 +187,49 @@ export function LoginScreen({
   // 📄 Screens.tsx 内の LoginScreen の中身
 
 const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  if (!studentId || !password) {
-    alert("学籍番号とパスワードを入力してください！");
-    return;
-  }
-  setIsLoading(true);
-  try {
-    // ❌ 修正前: fetch('http://localhost:8000/auth/login', {
-    // ⭕ 修正後: バックエンドの「/signin」に名前を合わせる！
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/signin`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sid: studentId, pword: password })
-    });
-
-    if (res.ok) {
-      const data = await res.json();
-      console.log("📡 ログイン成功:", data);
-      
-      // ⚠️ 【おまけの超重要チェック！】
-      // もしパスワードが違っても、バックエンドは「200 OK」のまま 
-      // {"status": "error", "message": "..."} を返してくるコードになっているので、
-      // ここでそれを受け止められるようにしておくと完璧です！
-      if (data.status === "error") {
-        alert(data.message); // 「学生番号かパスワードが違います」と表示
-        return;
-      }
-
-      alert("ログインしました！");
-      onLoginSuccess();
-    } else {
-      alert("サーバーエラーが発生しました。");
+    e.preventDefault();
+    if (!studentId || !password) {
+      alert("学籍番号とパスワードを入力してください！");
+      return;
     }
-  } catch (error) {
-    console.error("通信エラー:", error);
-    alert("バックエンドサーバーに接続できません。");
-  } finally {
-    setIsLoading(false);
-  }
-};
+    setIsLoading(true);
+    try {
+      // 💡 変更点: ログイン用のスキーマ {"sid": "...", "pword": "..."} に100%合わせる
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/signin`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          sid: String(studentId), // ⭕️ 文字列型にして送信
+          pword: String(password) // ⭕️ 文字列型にして送信
+        })
+      });
 
+      if (res.ok) {
+        const data = await res.json();
+        console.log("📡 ログイン成功:", data);
+        
+        if (data.status === "error") {
+          alert(data.message);
+          return;
+        }
+
+        // 💡 ログイン成功時に、トークンとログインしたユーザーのUID(学籍番号)を保存
+        localStorage.setItem('token', data.access_token || 'dummy_token');
+        localStorage.setItem('loginUid', String(studentId)); // これがダッシュボード側で入室時に使われます
+
+        alert("ログインしました！");
+        onLoginSuccess();
+      } else {
+        alert("サーバーエラーが発生しました。");
+      }
+    } catch (error) {
+      console.error("通信エラー:", error);
+      alert("バックエンドサーバーに接続できません。");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
   return (
     <div className="relative w-full h-full bg-slate-900 flex flex-col items-center justify-center p-6 text-white select-none">
       <div className="w-full max-w-sm bg-slate-800/90 p-6 rounded-2xl border border-slate-700 shadow-2xl backdrop-blur-md">

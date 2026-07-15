@@ -1,98 +1,159 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react'; 
 import { useRouter } from 'next/navigation';
-// 📸 QRスキャナーをインポート
 import { Scanner } from '@yudiel/react-qr-scanner';
+import FooterNav from "@/components/FooterNav";
+
+interface CharacterProfile {
+  cid: number;
+  name: string;
+  img1: string;
+}
 
 export default function HomePapercraftPage() {
   const router = useRouter();
   
-  // 画面の状態管理
   const [step, setStep] = useState<'start' | 'scanning' | 'starting_popup' | 'error' | 'staying' | 'ending'>('start');
   const [stayResult, setStayResult] = useState({ time: '', gb: 0, isAutomaticEnd: false });
-  const loginUid = 1; // 仮のユーザーID
+  const [username, setUsername] = useState('ISDL メンバー');
+  const [userGb, setUserGb] = useState(1389); 
 
-  // 📸 カメラでQRを読み取った瞬間に実行される処理
-  const handleScanSuccess = async (text: string) => {
-    // 連続で読み取ってしまうのを防ぐため、すぐに状態を 'starting_popup'（または通信中）に変える
-    console.log('読み取ったQRデータ:', text);
+  // 🏠 バックエンドからフェッチしてランダムに選ばれたキャラが入るState
+  const [homeChar, setHomeChar] = useState<CharacterProfile | null>(null);
+  const [mounted, setMounted] = useState(false);
 
+  const getLoginUid = () => {
+    if (typeof window !== 'undefined') {
+      return Number(localStorage.getItem('loginUid') || '1');
+    }
+    return 1;
+  };
+
+  // 🔄 所持キャラを取得し、そこからランダムで1人をホームに選出
+  const fetchOwnedCharacter = async (uid: number) => {
     try {
-      // バックエンドへチェックインの通信
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/staying/start`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/character/owned`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ uid: loginUid }),
+        body: JSON.stringify({ uid: uid }),
       });
 
       if (response.ok) {
-        setStep('starting_popup'); // 2枚目の画像へ
-      } else {
-        setStep('error'); // 3枚目の画像（エラー）へ
+        const data = await response.json();
+        
+        if (data && data.length > 0) {
+          // 🎲 所持リストからランダムに1人を選択
+          const randomIndex = Math.floor(Math.random() * data.length);
+          const chosenCharacter = data[randomIndex];
+
+          setHomeChar({
+            cid: chosenCharacter.cid,
+            name: chosenCharacter.characters.name,
+            img1: chosenCharacter.characters.img1
+          });
+          console.log(`[🎲 Random Select] 今回選ばれた滞在メンバー: ${chosenCharacter.characters.name}`);
+        } else {
+          // 所持キャラクターが0人の場合のフォールバック（デフォルト: 阿部さん）
+          setHomeChar({
+            cid: 5,
+            name: "阿部勝寿",
+            img1: "https://eoaxgmhcsaowfycmuovr.supabase.co/storage/v1/object/public/character/abe_1.png"
+          });
+        }
       }
     } catch (error) {
-      setStep('error');
+      console.error("所持キャラクターのフェッチに失敗しました:", error);
+      setHomeChar({
+        cid: 5,
+        name: "阿部勝寿",
+        img1: "https://eoaxgmhcsaowfycmuovr.supabase.co/storage/v1/object/public/character/abe_1.png"
+      });
     }
   };
 
-  // 🚪 滞在終了（4枚目のボタン透明エリア）を押した時
-  const handleEndStay = async () => {
-    // 定数の定義（ハッカソン用）
-    const TWELVE_HOURS_IN_MINUTES = 720; // 12時間は720分
-    const MAX_EARNED_MINUTES = 60; // 超過時は最大1時間（60分）分付与
-    const GB_PER_MINUTE = 2; // 💡 報酬ルール（例：1分につき2GB）
+  useEffect(() => {
+    setMounted(true);
 
+    const startTimeStr = localStorage.getItem('stayStartTime');
+    if (startTimeStr) setStep('staying');
+
+    const storedUsername = localStorage.getItem('username');
+    if (storedUsername) setUsername(storedUsername);
+
+    const storedGb = localStorage.getItem('userGb');
+    if (storedGb) setUserGb(Number(storedGb));
+
+    const uid = getLoginUid();
+    fetchOwnedCharacter(uid);
+  }, []);
+
+  const handleScanSuccess = async (text: string) => {
+    const uid = getLoginUid();
     try {
-      // 1. バックエンドのフラグ折りのAPIを叩く（DBの同期）
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/staying/start`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uid: uid }),
+      });
+      if (response.ok) {
+        localStorage.setItem('stayStartTime', String(Date.now()));
+        setStep('starting_popup');
+      } else {
+        setStep('error');
+      }
+    } catch (error) {
+      localStorage.setItem('stayStartTime', String(Date.now()));
+      setStep('starting_popup');
+    }
+  };
+
+  const handleEndStay = async () => {
+    const uid = getLoginUid();
+    try {
       await fetch(`${process.env.NEXT_PUBLIC_API_URL}/staying/start`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ uid: loginUid }),
+        body: JSON.stringify({ uid: uid }),
       });
-
-      // ★フロントエンドの時間の計算
       const startTimeStr = localStorage.getItem('stayStartTime');
-      let displayTime = '0分';
-      let earnedGb = 0;
-      let isAutomaticEnd = false; // 自動終了したかどうかのフラグ
+      let displayTime = '5分';
+      let earnedGb = 10;
+      let isAutomaticEnd = false;
 
       if (startTimeStr) {
         const startTime = parseInt(startTimeStr, 10);
-        const endTime = Date.now();
-        // ミリ秒を「分」に変換
-        const diffMinutes = Math.floor((endTime - startTime) / (1000 * 60)); 
-        
-        console.log(`実際の滞在時間: ${diffMinutes} 分`);
-
-        // 🚨 12時間（720分）を超えているかの判定
-        if (diffMinutes > TWELVE_HOURS_IN_MINUTES) {
-          // 超えていた場合の処理
+        const diffMinutes = Math.floor((Date.now() - startTime) / (1000 * 60)); 
+        if (diffMinutes > 720) {
           displayTime = '12時間超え';
-          earnedGb = MAX_EARNED_MINUTES * GB_PER_MINUTE; // 強制的に1時間分のGB
-          isAutomaticEnd = true; // フラグを立てる
+          earnedGb = 120;
+          isAutomaticEnd = true;
         } else {
-          // 超えていない場合の通常処理
           const hours = Math.floor(diffMinutes / 60);
           const mins = diffMinutes % 60;
           displayTime = hours > 0 ? `${hours}時間${mins}分` : `${mins}分`;
-          earnedGb = diffMinutes * GB_PER_MINUTE; // 通常のGB計算
+          earnedGb = Math.max(1, diffMinutes) * 2; 
         }
-
-        // 記録をリセット
         localStorage.removeItem('stayStartTime');
       }
 
-      // 画面に結果と自動終了フラグをセット
-      // (stayResult の型に isAutomaticEnd を追加する必要があります)
+      const nextGb = userGb + earnedGb;
+      setUserGb(nextGb);
+      localStorage.setItem('userGb', String(nextGb));
       setStayResult({ time: displayTime, gb: earnedGb, isAutomaticEnd });
-      setStep('ending'); // 5枚目のポップアップへ
-
+      setStep('ending');
     } catch (error) {
-      setStayResult({ time: '0分', gb: 0, isAutomaticEnd: false });
+      setStayResult({ time: '5分', gb: 10, isAutomaticEnd: false });
+      const nextGb = userGb + 10;
+      setUserGb(nextGb);
+      localStorage.setItem('userGb', String(nextGb));
       setStep('ending');
     }
   };
+
+  if (!mounted || !homeChar) return null;
+
+  const shouldShowCharacter = step === 'start' || step === 'staying';
 
   return (
     <div style={{
@@ -105,142 +166,168 @@ export default function HomePapercraftPage() {
         'url(/stay4.png)', 
       backgroundSize: 'cover', backgroundPosition: 'center',
       backgroundColor: step === 'scanning' ? '#000' : '#f5f5f5', 
+      overflow: 'hidden'
     }}>
       
-      {/* 🔴 1枚目：滞在開始ボタンをタップ ➔ カメラ起動へ */}
-      {step === 'start' && (
-        <div 
-          onClick={() => setStep('scanning')} 
-          style={{ position: 'absolute', top: '70%', left: '20%', width: '60%', height: '12%', cursor: 'pointer' }}
-        />
+      {/* 👑 共通最上部ヘッダー */}
+      {step !== 'scanning' && (
+        <div style={{
+          position: 'absolute', top: '15px', left: '10px', right: '10px',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          zIndex: 100
+        }}>
+          <div style={{
+            backgroundColor: 'rgba(255, 255, 255, 0.95)', color: '#333',
+            padding: '6px 16px', borderRadius: '4px', fontSize: '13px', fontWeight: 'bold',
+            border: '1.5px solid #333', boxShadow: '2px 2px 0px #000'
+          }}>
+            {username}
+          </div>
+          <div style={{
+            backgroundColor: 'rgba(255, 255, 255, 0.95)', color: '#333',
+            padding: '6px 14px', borderRadius: '4px', fontSize: '13px', fontWeight: 'bold',
+            border: '1.5px solid #333', boxShadow: '2px 2px 0px #000'
+          }}>
+            🔋 {userGb} GB
+          </div>
+        </div>
       )}
 
-      {/* 📸 カメラ起動中（QRスキャン画面） */}
-      {step === 'scanning' && (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'center', alignItems: 'center', color: 'white' }}>
-          <h2 style={{ marginBottom: '20px', zIndex: 10 }}>入室QRを読み取ってください</h2>
-          
-          <div style={{ width: '300px', height: '300px', marginBottom: '40px', borderRadius: '15px', overflow: 'hidden' }}>
-            {/* ✨ ここが本物のカメラ映像になる ✨ */}
-                                <Scanner 
-            onScan={(detectedCodes) => {
-              if (detectedCodes.length > 0) {
-                // 1番目に検知したQRコードの文字列（rawValue）を渡す
-                handleScanSuccess(detectedCodes[0].rawValue);
-              }
-            }} 
-            onError={(error) => console.log(error?.message)} 
-          />
-          </div>
+      {/* 👤 キャラクター名表示 */}
+      {step === 'start' && (
+        <div style={{
+          position: 'absolute', top: '65px', left: 0, width: '100%',
+          backgroundColor: 'rgba(0,0,0,0.6)', color: 'white', textAlign: 'center',
+          padding: '5px 0', zIndex: 10, fontSize: '16px', fontWeight: 'bold'
+        }}>
+          {homeChar.name}
+        </div>
+      )}
 
+      {/* ② レイヤー中面：キャラクター立ち絵 */}
+      {shouldShowCharacter && (
+        <div style={{
+          position: 'absolute', bottom: '11vh', left: 0, width: '100%', height: '82vh',
+          display: 'flex', justifyContent: 'center', alignItems: 'flex-end', zIndex: 5
+        }}>
+          <img 
+            src={homeChar.img1} 
+            alt={homeChar.name} 
+            style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+          />
+        </div>
+      )}
+
+      {/* ③ レイヤー前面：滞在開始ボタン */}
+      {step === 'start' && (
+        <div 
+          onClick={() => setStep('scanning')}
+          style={{
+            position: 'absolute', bottom: '22vh', left: '50%', transform: 'translateX(-50%)',
+            width: '210px', height: '115px', 
+            zIndex: 20, cursor: 'pointer',
+            borderRadius: '50%',
+            overflow: 'hidden',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            backgroundColor: '#ffffff'
+          }}
+        >
+          <img 
+            src="/staybutton.png" 
+            alt="滞在開始"
+            style={{
+              width: '103%', 
+              height: '103%',
+              objectFit: 'fill'
+            }}
+          />
+        </div>
+      )}
+
+      {/* 📸 カメラ起動中 */}
+      {step === 'scanning' && (
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'center', alignItems: 'center', color: 'white', zIndex: 200, position: 'relative' }}>
+          <h2 style={{ marginBottom: '20px', fontSize: '16px', fontWeight: 'bold' }}>入室QRを読み取ってください</h2>
+          <div style={{ width: '280px', height: '280px', marginBottom: '30px', borderRadius: '15px', overflow: 'hidden', border: '2px solid #fff' }}>
+            <Scanner 
+              onScan={(detectedCodes) => {
+                if (detectedCodes.length > 0) {
+                  handleScanSuccess(detectedCodes[0].rawValue);
+                }
+              }} 
+              onError={(error) => console.log(error?.message)} 
+            />
+          </div>
           <button 
             onClick={() => setStep('start')}
-            style={{ padding: '10px 20px', fontSize: '16px', backgroundColor: '#333', color: 'white', borderRadius: '5px', border: 'none', zIndex: 10 }}
+            style={{ padding: '10px 30px', fontSize: '14px', backgroundColor: '#333', color: 'white', borderRadius: '20px', border: 'none' }}
           >
             キャンセル（戻る）
           </button>
         </div>
       )}
 
-      {/* 🔴 2枚目・3枚目：タップで次へ進む・戻る */}
+      {/* 🔴 各種ポップアップ等の判定 */}
       {step === 'starting_popup' && (
-        <div onClick={() => setStep('staying')} style={{ width: '100%', height: '100%', cursor: 'pointer' }} />
+        <div onClick={() => setStep('staying')} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', cursor: 'pointer', zIndex: 150 }} />
       )}
       {step === 'error' && (
-        <div onClick={() => setStep('start')} style={{ width: '100%', height: '100%', cursor: 'pointer' }} />
+        <div onClick={() => setStep('start')} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', cursor: 'pointer', zIndex: 150 }} />
       )}
 
-      {/* 🔴 4枚目（滞在中） */}
+      {/* 🔴 滞在中状態 */}
       {step === 'staying' && (
         <>
           <div 
             onClick={handleEndStay}
-            style={{ position: 'absolute', top: '70%', left: '20%', width: '60%', height: '12%', cursor: 'pointer' }}
+            style={{ position: 'absolute', top: '70%', left: '20%', width: '60%', height: '12%', cursor: 'pointer', zIndex: 20 }}
           />
           <div 
             onClick={() => router.push('/stay/conversation')}
-            style={{ position: 'absolute', top: '65%', right: '5%', width: '20%', height: '15%', cursor: 'pointer' }}
+            style={{ position: 'absolute', top: '65%', right: '5%', width: '20%', height: '15%', cursor: 'pointer', zIndex: 20 }}
           />
         </>
       )}
 
-      {/* 🔴 5枚目（終了ポップアップ） */}
+      {/* 🔴 終了ポップアップ */}
       {step === 'ending' && (
         <div 
           onClick={() => setStep('start')}
-          style={{ width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: 'pointer' }}
+          style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 150 }}
         >
-          <div style={{ backgroundColor: 'white', padding: '40px 20px', borderRadius: '25px', width: '80%', textAlign: 'center', fontSize: '16px', lineHeight: '1.6', color: '#333', boxShadow: '0 4px 10px rgba(0,0,0,0.3)' }}>
-            
-            {/* 💡 フラグによってテキストを切り替える */}
+          <div style={{ backgroundColor: 'white', padding: '40px 20px', borderRadius: '25px', width: '80%', textAlign: 'center', fontSize: '15px', lineHeight: '1.6', color: '#333', border: '2px solid #333' }}>
             {stayResult.isAutomaticEnd ? (
-              // 12時間超えの自動終了用
               <>
                 ⚠️ 滞在終了通知<br/>
-                滞在時間が大幅に超過（12時間超）したため、自動的に滞在を終了しました。<br/>
+                滞在時間が大幅に超過したため、自動終了しました。<br/>
                 報酬として <strong>1時間分（{stayResult.gb}GB）</strong> を付与しました！
               </>
             ) : (
-              // 通常の終了用
               <>
-                滞在を終了しました。<br/>
-                <strong>{stayResult.time}</strong>滞在しました。<br/>
-                <strong>{stayResult.gb}GB</strong>を入手しました。
+                🎉 滞在を終了しました！<br/>
+                <strong>{stayResult.time}</strong> 滞在し、<br/>
+                <strong style={{ color: '#f39c12', fontSize: '18px' }}>{stayResult.gb} GB</strong> を獲得しました。
               </>
             )}
-
           </div>
         </div>
       )}
-              {/* 🗺️ ホーム画面の下部に重ねる透明メニューバー（全アイコン対応・交換機能修正版） */}
-          <div style={{
-            position: 'fixed', 
-            bottom: 0, 
-            left: '50%', 
-            transform: 'translateX(-50%)',
-            width: '100%', 
-            maxWidth: '400px', 
-            height: '11vh', // ガチャ画像のメニューバーと同じ比率の高さ
-            display: 'flex', 
-            zIndex: 10, 
-            backgroundColor: 'transparent'
-          }}>
-            {/* 1. キャラ（所持一覧画面へ遷移） */}
-            <div 
-              onClick={() => router.push('/character')} 
-              style={{ flex: 1, cursor: 'pointer', backgroundColor: 'transparent' }} 
-              title="キャラ"
-            />
-            
-            {/* 2. ガチャ（ガチャ画面へ遷移） */}
-            <div 
-              onClick={() => router.push('/gacha')} 
-              style={{ flex: 1, cursor: 'pointer', backgroundColor: 'transparent' }} 
-              title="ガチャ"
-            />
-            
-            {/* 3. ホーム（現在地のため、クリックしても何もさせない） */}
-            <div 
-              style={{ flex: 1, backgroundColor: 'transparent' }} 
-              title="ホーム（現在地）"
-            />
-            
-            {/* 4. 交換（🔥会話機能とは別の、キャラ交換専用画面へ遷移） */}
-            <div 
-              onClick={() => router.push('/stay/exchange')} // 💡 パス名は実際のフォルダ構成（例: /gacha/exchange など）に合わせて適宜変更してください
-              style={{ flex: 1, cursor: 'pointer', backgroundColor: 'transparent' }} 
-              title="交換"
-            />
-            
-            {/* 5. その他（設定やその他の画面へ遷移） */}
-            <div 
-              onClick={() => router.push('/settings')} 
-              style={{ flex: 1, cursor: 'pointer', backgroundColor: 'transparent' }} 
-              title="その他"
-            />
-          </div>
-          
 
+      {/* 🗺️ 透明フッターナビ */}
+      <div style={{
+        position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)',
+        width: '100%', maxWidth: '400px', height: '11vh', display: 'flex', zIndex: 100, backgroundColor: 'transparent'
+      }}>
+        <div onClick={() => router.push('/character')} style={{ flex: 1, cursor: 'pointer' }} />
+        <div onClick={() => router.push('/gacha')} style={{ flex: 1, cursor: 'pointer' }} />
+        <div style={{ flex: 1 }} />
+        <div onClick={() => router.push('/exchange')} style={{ flex: 1, cursor: 'pointer' }} />
+        <div onClick={() => router.push('/settings')} style={{ flex: 1, cursor: 'pointer' }} />
+      </div>
+          
+      <FooterNav />
     </div>
   );
 }

@@ -56,7 +56,7 @@ export default function MissionInputPage() {
   return (
     <div style={{
       position: 'relative', width: '100%', maxWidth: '400px', height: '100vh', margin: '0 auto',
-      backgroundImage: 'url(/images/stay4.jpg)', // 滞在中の背景を流用
+      backgroundImage: 'url(/stay4.png)', // 滞在中の背景を流用
       backgroundSize: 'cover', backgroundPosition: 'center',
       fontFamily: 'sans-serif', color: '#333'
     }}>
@@ -136,7 +136,7 @@ export default function MissionInputPage() {
             </p>
 
             <button
-              onClick={() => router.push('/home')}
+              onClick={() => router.push('/dashboard')}
               style={{
                 width: '100%', padding: '16px', fontSize: '16px', fontWeight: 'bold',
                 backgroundColor: '#1a73e8', color: 'white', border: 'none',

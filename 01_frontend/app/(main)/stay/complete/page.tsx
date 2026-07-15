@@ -44,7 +44,7 @@ export default function CompletePage() {
 
       {/* 🏠 ホームへ戻るボタン */}
       <button
-        onClick={() => router.push('/home')} // 💡 ホーム画面（checkin）のURLに合わせて変更してください
+        onClick={() => router.push('/dashboard')} // 💡 ホーム画面（checkin）のURLに合わせて変更してください
         style={{
           width: '200px', height: '60px',
           borderRadius: '30px',

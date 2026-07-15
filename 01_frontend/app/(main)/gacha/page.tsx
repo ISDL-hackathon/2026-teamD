@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import MoreModal from "@/components/MoreModal";
 
 type GachaStep = "BASE" | "CONFIRM" | "VIDEO" | "RESULT_IMAGE" | "FINAL_SUMMARY";
 
@@ -10,6 +11,7 @@ export default function GachaPage() {
   const [step, setStep] = useState<GachaStep>("BASE");
   const [gachaType, setGachaType] = useState<1 | 8>(1);
   const [resultImageIndex, setResultImageIndex] = useState<number>(2);
+  const [isMoreOpen, setIsMoreOpen] = useState(false);
 
   // ガチャボタン（1回 / 8回）を押したとき
   const handleGachaStart = (type: 1 | 8) => {
@@ -112,9 +114,9 @@ export default function GachaPage() {
                 aria-label="交換"
               />
 
-              {/* 5. その他ボタン */}
+              {/* 💡 5. その他ボタン: ルーター遷移ではなく、ステートを true にしてポップアップをその場で開く！ */}
               <button 
-                onClick={() => router.push("/more")} 
+                onClick={() => setIsMoreOpen(true)} 
                 className="flex-1 bg-transparent active:bg-white/10"
                 aria-label="その他"
               />
@@ -179,6 +181,8 @@ export default function GachaPage() {
         )}
 
       </main>
+      {/* 💡 画面の最前面（mainの外側）に配置することで、背景画像（ガチャ画面）の上に綺麗に重なります */}
+      <MoreModal isOpen={isMoreOpen} onClose={() => setIsMoreOpen(false)} />
     </div>
   );
 }
