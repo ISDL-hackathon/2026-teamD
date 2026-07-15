@@ -52,7 +52,6 @@ def trade_scan_qr(request_data: TradingScanRequest):
         tar_uid = request_data.uid
         trade_id = request_data.trade_id
         add_tar_uid(tar_uid, trade_id)
-        change_trade_flag(trade_id, True)
         tar_name = get_name(tar_uid)
         tar_grade = get_grade(tar_uid)
         print(f"交換する相手の名前は{tar_name}，学年は{tar_grade}ですか？")
@@ -119,22 +118,17 @@ def complete_trade(request_data: TradingCompleteRequest):
 
     uid = request_data.uid
 
-    flags = get_my_flag_tar_flag(uid)
 
-    if flags != (True, True):
-        return {
-            "message": "相手の選択待ち"
-        }
 
 
     trade_id = get_trade_id(uid)
 
-    character = execute_trade(trade_id)
+    character = execute_trade(trade_id, uid)
 
     if character is None:
         return {
             "message": "交換失敗"
         }
-
+    print(character)
 
     return character

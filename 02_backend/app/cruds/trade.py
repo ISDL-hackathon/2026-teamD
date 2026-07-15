@@ -208,7 +208,7 @@ def add_trade_character(uid, cid):
 
         # ★追加
         # 相手から交換可能なキャラか確認
-        if not check_trade_character(tar_uid, uid, cid):
+        if not check_trade_character(uid, tar_uid, cid):
             print("交換できないキャラです")
             return False
         
@@ -268,7 +268,7 @@ def add_trade_character(uid, cid):
         return False
     
 
-def execute_trade(trade_id):
+def execute_trade(trade_id, uid):
     try:
         # trade取得
         result = (
@@ -290,38 +290,71 @@ def execute_trade(trade_id):
         my_cid = trade["my_cid"]
         tar_cid = trade["tar_cid"]
 
-        if not check_trade_character(my_uid, tar_uid, my_cid):
-            print("不正な交換キャラ")
-            return None
 
-        if not check_trade_character(my_uid, tar_uid, tar_cid):
-            print("不正な交換キャラ")
-            return None
         
-        # 削除
-        remove_character(my_uid, my_cid)
-        remove_character(tar_uid, tar_cid)
-        print("削除完了")
+        
 
-        # 追加
-        add_character(my_uid, tar_cid)
-        add_character(tar_uid, my_cid)
-        print("追加完了")
+        if my_uid == uid:
+            remove_character(my_uid, tar_cid)
+            print("削除完了")
+            add_character(my_uid, my_cid)
+            print("追加完了")
+        else :
+            remove_character(tar_uid, my_cid)
+            print("削除完了")
+            # 追加
+            add_character(tar_uid, tar_cid)
+            print("追加完了")
+        # ★自分の交換完了フラグをOFF
+        if uid == my_uid:
+            supabase \
+                .table("trade") \
+                .update({
+                    "my_flag": False
+                }) \
+                .eq("trade_id", trade_id) \
+                .execute()
+
+        elif uid == tar_uid:
+            supabase \
+                .table("trade") \
+                .update({
+                    "tar_flag": False
+                }) \
+                .eq("trade_id", trade_id) \
+                .execute()
 
 
-        # 交換終了
-        (
+        # 最新状態取得
+        flag_result = (
             supabase
             .table("trade")
-            .update({
-                "is_trade": False
-            })
+            .select("my_flag, tar_flag")
             .eq("trade_id", trade_id)
             .execute()
         )
 
+        flags = flag_result.data[0]
 
-        # 自分が受け取ったキャラ情報を返す
+
+        # 両方完了なら交換終了
+        if (
+            flags["my_flag"] == False
+            and flags["tar_flag"] == False
+        ):
+            supabase \
+                .table("trade") \
+                .update({
+                    "is_trade": False
+                }) \
+                .eq("trade_id", trade_id) \
+                .execute()
+
+
+        # 自分が受け取ったキャラ
+        received_cid = tar_cid if uid == my_uid else my_cid
+
+
         character = (
             supabase
             .table("characters")
@@ -331,7 +364,7 @@ def execute_trade(trade_id):
                 name,
                 rare
             """)
-            .eq("cid", tar_cid)
+            .eq("cid", received_cid)
             .execute()
         )
 
