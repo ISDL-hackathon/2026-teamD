@@ -12,7 +12,7 @@ class CharacterProfileRequest(BaseModel):
     uid: int
     cid: int
 
-@router.post("owend")
+@router.post("/owend")
 def get_owned_character(request_data: CharacterRequest):
     uid = request_data.uid
     print(f"キャラクター詳細のトップ画面  uid:", uid)
@@ -24,7 +24,7 @@ def get_owned_character(request_data: CharacterRequest):
     return owner_character
 
 
-@router.post("profile")
+@router.post("/profile")
 def get_character_profile(request_data: CharacterProfileRequest):
     uid = request_data.uid
     cid = request_data.cid
