@@ -196,78 +196,13 @@ def get_my_flag_tar_flag(uid):
         print(f"flag取得失敗:{e}")
         return None
 
-def execute_trade(trade_id):
-    try:
-        # trade取得
-        result = (
-            supabase
-            .table("trade")
-            .select("*")
-            .eq("trade_id", trade_id)
-            .execute()
-        )
-
-        if not result.data:
-            return None
-
-        trade = result.data[0]
-
-        my_uid = trade["my_uid"]
-        tar_uid = trade["tar_uid"]
-
-        my_cid = trade["my_cid"]
-        tar_cid = trade["tar_cid"]
-
-
-        # 削除
-        remove_character(my_uid, my_cid)
-        remove_character(tar_uid, tar_cid)
-        print("削除完了")
-
-        # 追加
-        add_character(my_uid, tar_cid)
-        add_character(tar_uid, my_cid)
-        print("追加完了")
-
-
-        # 交換終了
-        (
-            supabase
-            .table("trade")
-            .update({
-                "is_trade": False
-            })
-            .eq("trade_id", trade_id)
-            .execute()
-        )
-
-
-        # 自分が受け取ったキャラ情報を返す
-        character = (
-            supabase
-            .table("characters")
-            .select("""
-                cid,
-                img1,
-                name,
-                rare
-            """)
-            .eq("cid", tar_cid)
-            .execute()
-        )
-
-        if character.data:
-            return character.data[0]
-
-        return None
-
-
-    except Exception as e:
-        print(f"交換処理失敗:{e}")
-        return None
-
 def add_trade_character(uid, cid):
     try:
+        # ★追加：本当に持っているか確認
+        if not check_have_character(uid, cid):
+            print("このキャラを所持していません")
+            return False
+        
         # 交換相手取得
         tar_uid = get_opponent_uid(uid)
 
@@ -323,6 +258,86 @@ def add_trade_character(uid, cid):
         print(f"キャラ登録失敗: {e}")
         return False
     
+    
+def execute_trade(trade_id):
+    try:
+        # trade取得
+        result = (
+            supabase
+            .table("trade")
+            .select("*")
+            .eq("trade_id", trade_id)
+            .execute()
+        )
+
+        if not result.data:
+            return None
+
+        trade = result.data[0]
+
+        my_uid = trade["my_uid"]
+        tar_uid = trade["tar_uid"]
+
+        my_cid = trade["my_cid"]
+        tar_cid = trade["tar_cid"]
+
+        # ★追加：本当に持っているか確認
+        if not check_have_character(my_uid, my_cid):
+            print("このキャラを所持していません")
+            return False
+
+        # ★追加：本当に持っているか確認
+        if not check_have_character(tar_uid, tar_cid):
+            print("このキャラを所持していません")
+            return False
+        # 削除
+        remove_character(my_uid, my_cid)
+        remove_character(tar_uid, tar_cid)
+        print("削除完了")
+
+        # 追加
+        add_character(my_uid, tar_cid)
+        add_character(tar_uid, my_cid)
+        print("追加完了")
+
+
+        # 交換終了
+        (
+            supabase
+            .table("trade")
+            .update({
+                "is_trade": False
+            })
+            .eq("trade_id", trade_id)
+            .execute()
+        )
+
+
+        # 自分が受け取ったキャラ情報を返す
+        character = (
+            supabase
+            .table("characters")
+            .select("""
+                cid,
+                img1,
+                name,
+                rare
+            """)
+            .eq("cid", tar_cid)
+            .execute()
+        )
+
+        if character.data:
+            return character.data[0]
+
+        return None
+
+
+    except Exception as e:
+        print(f"交換処理失敗:{e}")
+        return None
+
+
 def remove_character(uid, cid):
     result = (
         supabase
@@ -396,3 +411,24 @@ def add_character(uid, cid):
             .execute()
 
     return True
+
+def check_have_character(uid, cid):
+    try:
+        result = (
+            supabase
+            .table("user_character")
+            .select("cnt")
+            .eq("uid", uid)
+            .eq("cid", cid)
+            .execute()
+        )
+
+        if not result.data:
+            return False
+
+        # cntが1以上なら所持
+        return result.data[0]["cnt"] > 0
+
+    except Exception as e:
+        print(f"所持確認失敗:{e}")
+        return False
