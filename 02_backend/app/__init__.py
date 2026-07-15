@@ -6,14 +6,17 @@ from supabase import create_client, Client
 load_dotenv()
 
 SUPABASE_URL: str = os.environ.get("SUPABASE_URL")
-SUPABASE_KEY: str = os.environ.get("SUPABASE_KEY")
+
+SUPABASE_ANON_KEY: str = os.environ.get("SUPABASE_KEY")
 
 SUPABASE_URL_old: str = os.environ.get("SUPABASE_URL_old")
 SUPABASE_KEY_old: str = os.environ.get("SUPABASE_KEY_old")
-print("URL =", SUPABASE_URL)
-print("KEY =", SUPABASE_KEY[:10] if SUPABASE_KEY else None)
-if not SUPABASE_URL or not SUPABASE_KEY:
-    print("Supabaseの環境変数が設定されていません。")
 
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+if not SUPABASE_URL or not SUPABASE_ANON_KEY:
+    print("Supabase_newの環境変数が設定されていません。")
+
+if not SUPABASE_URL_old or not SUPABASE_KEY_old:
+    print("Supabase_oldの環境変数が設定されていません。")
+
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
 supabase_old: Client = create_client(SUPABASE_URL_old, SUPABASE_KEY_old)

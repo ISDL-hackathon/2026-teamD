@@ -1,7 +1,9 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from app.cruds.conversation import get_num_is_staying, select_user, get_tar_id, get_grade, finish_conversation#prefix_characters
+
+from app.cruds.conversation import get_num_is_staying, select_user, get_tar_id, finish_conversation
+from app.cruds.users import get_grade
 from app.gemini import create_question
 from app.cruds.gb import add_gb_fot_conversation
 

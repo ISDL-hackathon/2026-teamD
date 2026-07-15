@@ -77,7 +77,9 @@ def get_character_from_user(uid, cnt):
             result.append(get_character_by_id(uid, cid))
             print("ガチャで排出成功")
         
-        
+
+        consume_gb = 16 * cnt
+        update_gb(uid, -consume_gb)
         return result
     
     except Exception as e:

@@ -79,8 +79,8 @@ def get_character_rate(cnt):
     import random
     print("ガチャ確率アルゴリズム実装")
     try:
-        response = supabase.table("characters").select("cid", "rate").execute()
-        char_list=response.data
+        rate = supabase.table("characters").select("cid", "rate").execute()
+        char_list=rate.data
         if not char_list:
             print("エラー: キャラクターデータがDBにありません。")
             return False
@@ -105,7 +105,8 @@ def demo_get_character(cnt):
         chosen_id = (
         supabase.table("characters")
         .select("cid")
-        .in_("id", list(range(10, 18)))
+
+        .in_("cid", list(range(1, 8)))
         .execute()
         )
         print(f"ガチャ確率アルゴリズム成功: ガチャ当選キャラID: {chosen_id}")
@@ -117,7 +118,6 @@ def demo_get_character(cnt):
         return False
 
 
-#キャラ選択トップに表示するデータ
 def get_owned_character_db(uid):
     try:
         response = (
@@ -125,20 +125,27 @@ def get_owned_character_db(uid):
             .table("user_character")
             .select("""
                 cid,
-                characters (
+                cnt,
+                characters!user_character_cid_fkey(
+                    cid,
                     name,
                     grade,
-                    img1
+                    img1,
+                    rare
                 )
-             """)
+            """)
             .eq("uid", uid)
             .execute()
         )
-        
+
+
+        print(response.data)
+
         for character in response.data:
             print(character["characters"]["name"])
             print(character["characters"]["grade"])
             print(character["characters"]["img1"])
+
         return response.data
 
     except Exception as e:

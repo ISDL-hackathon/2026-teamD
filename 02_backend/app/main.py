@@ -1,12 +1,20 @@
-from . import SUPABASE_URL, SUPABASE_KEY
+from . import SUPABASE_URL, SUPABASE_ANON_KEY
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from contextlib import asynccontextmanager
 
-from app.routers import character, gatya, staying, conversation, qr, auth, gb
-
+from app.routers import (
+    character,
+    gatya,
+    staying,
+    conversation,
+    qr,
+    auth,
+    gb,
+    trade,
+)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("サーバー起動とDB初期化")
@@ -47,6 +55,7 @@ app.include_router(staying.router)
 app.include_router(conversation.router)
 app.include_router(qr.router)
 app.include_router(character.router)
+app.include_router(trade.router)
 
 
 if __name__ == "__main__":

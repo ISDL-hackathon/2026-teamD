@@ -2,7 +2,8 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from datetime import datetime, timezone
-from app.cruds.staying import get_staying_flag, change_staying_flag_db, save_start_time, get_start_time, end_staying_time
+from app.cruds.staying import  change_staying_flag_db, save_start_time, end_staying_time
+from app.cruds.users import  get_start_time, get_staying_flag
 from app.cruds.gb import update_gb
 
 
