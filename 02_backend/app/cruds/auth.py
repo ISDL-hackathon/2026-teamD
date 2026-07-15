@@ -1,33 +1,60 @@
-from app import supabase_old
+from typing import Any, Dict, Optional
 
-#サインアップしたユーザをDBに登録する
-def sign_up_user_to_db(name, grade, sid, pword):
-    print("ユーザー登録実装中")
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+
+from app import supabase
+
+
+# Authorization ヘッダーがない場合も、こちらで統一した401を返す。
+bearer_scheme = HTTPBearer(auto_error=False)
+
+
+def _unauthorized(detail: str) -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail=detail,
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+
+def get_current_user(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(bearer_scheme),
+) -> Dict[str, Any]:
+    """Bearerトークンから、ログイン中のpublic.usersレコードを取得する。"""
+    if credentials is None:
+        raise _unauthorized("ログインが必要です")
+
+    access_token = credentials.credentials
+
     try:
-        #ユーザ登録
-        response = supabase_old.table("users").insert({
-            "name": name,
-            "grade": grade,
-            "sid": sid,
-            "pword": pword
-        }).execute()
-        
-        print("ユーザー登録成功") 
-        return response.data
-    except Exception as e:
-        print(f"ユーザー登録失敗: {e}")
-        return False
+        auth_response = supabase.cruds.auth.get_user(access_token)
+        auth_user = auth_response.user
+    except Exception:
+        # Supabaseの詳細エラーはクライアントへ公開しない。
+        raise _unauthorized("アクセストークンが無効、または期限切れです")
 
-def sign_in_user_to_db(sid, pword):
-    print("ユーザーログイン実装中")
+    if auth_user is None:
+        raise _unauthorized("ログインユーザーを確認できませんでした")
+
     try:
-        response = supabase_old.table("users").select("*").eq("sid", sid).eq("pword", pword).execute()
-        print("ユーザーログイン成功")
-        return response.data
-    except Exception as e:
-        print(f"ユーザーログイン失敗: {e}")
-        return False
+        profile_response = (
+            supabase.table("users")
+            .select("uid, auth_id, name, grade, is_stay")
+            .eq("auth_id", str(auth_user.id))
+            .limit(1)
+            .execute()
+        )
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="プロフィールの取得に失敗しました",
+        )
 
-def sign_out_user_to_db(sid, pword):
-    print("ユーザーログアウト")
-    print("未実装")
+    if not profile_response.data:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="ログインユーザーに対応するプロフィールがありません",
+        )
+
+    return profile_response.data[0]

@@ -1,3 +1,5 @@
+from fastapi import Depends
+from app.cruds.auth import get_current_user
 from fastapi import APIRouter
 from pydantic import BaseModel
 
@@ -5,12 +7,9 @@ from app.cruds.gb import  update_gb
 
 router = APIRouter(prefix="/gb", tags=["gb"])
 
-class GachaRequest(BaseModel):
-    uid: int
-
 @router.post("/gb")
-def tutorial_gb_endpoint(request_data: GachaRequest):
-    uid = request_data.uid
+def tutorial_gb_endpoint(current_user=Depends(get_current_user)):
+    uid = current_user["uid"]
     print(f"チュートリアルGB配布発生 UID: {uid}")
     
     result = get_tutorial(uid)

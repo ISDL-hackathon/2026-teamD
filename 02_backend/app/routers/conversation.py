@@ -1,22 +1,22 @@
+from fastapi import Depends
+from app.cruds.auth import get_current_user
+
 from fastapi import APIRouter
 from pydantic import BaseModel
 
 
 from app.cruds.conversation import get_num_is_staying, select_user, get_tar_id, finish_conversation
-from app.cruds.users import get_grade
+from app.cruds.get_users_table import get_grade
 from app.gemini import create_question
 from app.cruds.gb import add_gb
 
 
 router = APIRouter(prefix="/staying", tags=["staying"])
 
-class ConversationRequest(BaseModel):
-    uid: int
-
 #会話呼び出し
 @router.post("/conversation")
-def conversation_start(request_data: ConversationRequest):
-    uid = request_data.uid
+def conversation_start(current_user=Depends(get_current_user)):
+    uid = current_user["uid"]
     data = init_conversation(uid)
     if data is None:
         return {"message": "あなたは1人だけです"}
@@ -26,8 +26,8 @@ def conversation_start(request_data: ConversationRequest):
 
 #質問の答え入力
 @router.post("/input")
-def input_answer(request_data: ConversationRequest):
-    my_id=request_data.uid
+def input_answer(current_user=Depends(get_current_user)):
+    my_id=current_user["uid"]
     my_grade = get_grade(my_id)
     tar_info=get_tar_id(my_id)
 

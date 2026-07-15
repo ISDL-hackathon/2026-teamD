@@ -1,3 +1,5 @@
+from fastapi import Depends
+from app.cruds.auth import get_current_user
 import qrcode
 import io
 import os
@@ -8,15 +10,12 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from app.cruds.qr import get_mission_id, verify_conversation_qr
-from app.cruds.users import get_grade
+from app.cruds.get_users_table import get_grade
 
 router = APIRouter(prefix="/qr", tags=["qr"])
 
-class QrShowRequest(BaseModel):
-    uid : int
 
 class QrScanRequest(BaseModel):
-    uid: int
     grade: str
     mission_id: int
 
@@ -27,20 +26,10 @@ def enter():
     img = qrcode.make(url)
     img.save("qr_img/enter_qr.png")
 
-class EnterRequest(BaseModel):
-    uid : int
-
-@router.post("/enter")
-def enter():
-    #URLはまた変更
-    url = "http://127.0.0.1:8000/staying/start"
-    img = qrcode.make(url)
-    img.save("qr_img/enter_qr.png")
-
 
 @router.post("/showQR")
-def create_qr(request_data: QrShowRequest):
-    uid = request_data.uid
+def create_qr(current_user=Depends(get_current_user)):
+    uid = current_user["uid"]
 
     user_data = conversation_show_qr_info(uid)
     json_data = json.dumps(user_data)
@@ -48,9 +37,9 @@ def create_qr(request_data: QrShowRequest):
     return StreamingResponse(qr_data, media_type="image/png")
 
 @router.post("/scanQR")
-def scan_qr(request_data: QrScanRequest):
+def scan_qr(request_data: QrScanRequest, current_user=Depends(get_current_user)):
     try:
-        uid = request_data.uid
+        uid = current_user["uid"]
         grade = request_data.grade
         mission_id = request_data.mission_id
 

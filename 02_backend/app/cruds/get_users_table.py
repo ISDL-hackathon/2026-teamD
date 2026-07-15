@@ -41,3 +41,38 @@ def get_start_time(uid):
     except Exception as e:
         print(f"スタート時間の取り出し失敗: {e}")
         return False
+    
+def update_user_gb(uid: int, additional_gb: int) -> dict | None:
+    try:
+        user_result = (
+            supabase
+            .table("users")
+            .select("gb")
+            .eq("uid", uid)
+            .execute()
+        )
+        if not user_result.data:
+            print(f"ユーザー(UID: {uid}) が見つかりません。")
+            return None
+
+        current_gb = user_result.data[0].get("gb") or 0
+
+        new_gb = current_gb + additional_gb
+
+        update_result = (
+            supabase
+            .table("users")
+            .update({"gb": new_gb})
+            .eq("uid", uid)
+            .execute()
+        )
+
+        if update_result.data:
+            print(f"ユーザー(UID: {uid}) のGBを更新しました: {current_gb} -> {new_gb}")
+            return update_result.data[0]
+        
+        return None
+
+    except Exception as e:
+        print(f"GB更新処理エラー (uid: {uid}): {e}")
+        return None

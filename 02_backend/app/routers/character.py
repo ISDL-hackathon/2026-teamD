@@ -1,3 +1,6 @@
+from fastapi import Depends
+from app.cruds.auth import get_current_user
+
 from fastapi import APIRouter
 from pydantic import BaseModel
 
@@ -11,20 +14,17 @@ from app.cruds.character import (
 router = APIRouter(prefix="/character", tags=["character"])
 
 class CharacterRequest(BaseModel):
-    uid: int
 
 class CharacterProfileRequest(BaseModel):
-    uid: int
     cid: int
 
 class HomeCharacterRequest(BaseModel):
-    uid: int
     cid: int
 
 
 @router.post("/owend")
-def get_owned_character(request_data: CharacterRequest):
-    uid = request_data.uid
+def get_owned_character(current_user=Depends(get_current_user)):
+    uid = current_user["uid"]
     print(f"キャラクター詳細のトップ画面  uid:", uid)
     owner_character = get_owned_character_db(uid)
     print(owner_character)
@@ -35,8 +35,8 @@ def get_owned_character(request_data: CharacterRequest):
 
 
 @router.post("/profile")
-def get_character_profile(request_data: CharacterProfileRequest):
-    uid = request_data.uid
+def get_character_profile(request_data: CharacterProfileRequest, current_user=Depends(get_current_user)):
+    uid = current_user["uid"]
     cid = request_data.cid
     print(f"キャラクタープロフィールを表示 uid:{uid}, cid:{cid}")
 
@@ -48,8 +48,8 @@ def get_character_profile(request_data: CharacterProfileRequest):
 
 
 @router.post("/home-character")
-def set_home_character(request_data: HomeCharacterRequest):
-    uid = request_data.uid
+def set_home_character(request_data: HomeCharacterRequest, current_user=Depends(get_current_user)):
+    uid = current_user["uid"]
     cid = request_data.cid
     result = update_home_character(uid, cid)
     char_info = get_character_info(cid)

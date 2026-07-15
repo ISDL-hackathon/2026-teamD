@@ -1,9 +1,11 @@
+from fastapi import Depends
+from app.cruds.auth import get_current_user
 import json
 from fastapi import APIRouter
 from pydantic import BaseModel
 
 from app.routers.qr import trade_create_qr
-from app.cruds.users import get_name, get_grade
+from app.cruds.get_users_table import get_name, get_grade
 from app.cruds.gb import add_gb
 from app.cruds.trade import (
     add_my_uid,
@@ -21,42 +23,29 @@ from app.cruds.trade import (
 
 router = APIRouter(prefix="/trading", tags=["trading"])
 
-class TradingShowRequest(BaseModel):
-    uid : int
 
 class TradingScanRequest(BaseModel):
-    uid: int
     trade_id: int
 
 class TradingAllowRequest(BaseModel):
     trade_id: int
     flag: bool
 
-class TradingSelectCharactersRequest(BaseModel):
-    uid: int
-
-class TradingRequest(BaseModel):
-    uid: int
+class TradingSelectRequest(BaseModel):
     cid: int
-
-class TradingCompleteRequest(BaseModel):
-    uid: int
-
-class TradeingAddGbRequest(BaseModel):
-    uid: int
 
 #トレードで使用するQRを見せる
 @router.post("/showQR")
-def trade_show_qr(request_data: TradingShowRequest):
-    uid = request_data.uid
+def trade_show_qr(current_user=Depends(get_current_user)):
+    uid = current_user["uid"]
     print("交換でユーザを識別するQRを表示")
     trade_id = add_my_uid(uid)
     return trade_create_qr(uid, trade_id)
     
 @router.post("/scanQR")
-def trade_scan_qr(request_data: TradingScanRequest):
+def trade_scan_qr(request_data: TradingScanRequest, current_user=Depends(get_current_user)):
     try:
-        tar_uid = request_data.uid
+        tar_uid = current_user["uid"]
         trade_id = request_data.trade_id
         add_tar_uid(tar_uid, trade_id)
         tar_name = get_name(tar_uid)
@@ -71,15 +60,15 @@ def trade_scan_qr(request_data: TradingScanRequest):
         return False    
 
 @router.post("/allow")
-def trade_flag_true(request_data: TradingAllowRequest):
+def trade_flag_true(request_data: TradingAllowRequest, current_user=Depends(get_current_user)):
     trade_id = request_data.trade_id
     flag = request_data.flag
     change_trade_flag(trade_id, flag)
 
 
 @router.post("/select")
-def trade_info(request_data: TradingSelectCharactersRequest):
-    uid = request_data.uid
+def trade_info(current_user=Depends(get_current_user)):
+    uid = current_user["uid"]
 
     tar_uid = get_opponent_uid(uid)
 
@@ -105,8 +94,8 @@ def trade_info(request_data: TradingSelectCharactersRequest):
     }
 
 @router.post("/trade")
-def confirm_trade_character(request_data: TradingRequest):
-    uid = request_data.uid
+def confirm_trade_character(request_data: TradingSelectRequest, current_user=Depends(get_current_user)):
+    uid = current_user["uid"]
     cid = request_data.cid
 
     result = add_trade_character(uid, cid)
@@ -121,9 +110,9 @@ def confirm_trade_character(request_data: TradingRequest):
     }
 
 @router.post("/complete")
-def complete_trade(request_data: TradingCompleteRequest):
+def complete_trade(current_user=Depends(get_current_user)):
 
-    uid = request_data.uid
+    uid = current_user["uid"]
 
     trade_id = get_trade_id(uid)
 
@@ -137,8 +126,8 @@ def complete_trade(request_data: TradingCompleteRequest):
     return character
 
 @router.post("/gb")
-def add_gb_for_trade(request_data: TradeingAddGbRequest):
-    uid = request_data.uid
+def add_gb_for_trade(current_user=Depends(get_current_user)):
+    uid = current_user["uid"]
     trade_id = get_trade_id(uid)
     if trade_id is None:
         return {"status": "error", "message": "トレードが見つかりません"}
