@@ -1,7 +1,12 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from app.cruds.character import get_character_profile_db, get_owned_character_db
+from app.cruds.character import (
+    get_character_profile_db, 
+    get_owned_character_db,
+    update_home_character,
+    get_character_info
+)
 
 router = APIRouter(prefix="/character", tags=["character"])
 
@@ -11,6 +16,11 @@ class CharacterRequest(BaseModel):
 class CharacterProfileRequest(BaseModel):
     uid: int
     cid: int
+
+class HomeCharacterRequest(BaseModel):
+    uid: int
+    cid: int
+
 
 @router.post("/owend")
 def get_owned_character(request_data: CharacterRequest):
@@ -35,3 +45,26 @@ def get_character_profile(request_data: CharacterProfileRequest):
         print("所持キャラがいません")
         return None
     return char_data
+
+
+@router.post("/home-character")
+def set_home_character(request_data: HomeCharacterRequest):
+    uid = request_data.uid
+    cid = request_data.cid
+    result = update_home_character(uid, cid)
+    char_info = get_character_info(cid)
+
+    if not result:
+        return {
+            "status": "error",
+            "message": "所持していないキャラクターです"
+        }
+
+    name = char_info["name"]
+    img1 = char_info["img1"]
+
+    return {
+        "cid": cid,
+        "name": name,
+        "img1": img1
+    }

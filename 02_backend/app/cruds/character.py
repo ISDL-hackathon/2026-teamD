@@ -182,3 +182,59 @@ def get_character_profile_db(uid, cid):
     except Exception as e:
         print(f"所持キャラクター取得失敗: {e}")
         return False
+
+def update_home_character(uid, cid):
+    try:
+        # 所持確認
+        if not has_character(uid, cid):
+            return False
+
+        response = (
+            supabase
+            .table("home_character")
+            .upsert({
+                "uid": uid,
+                "cid": cid
+            })
+            .execute()
+        )
+
+        return response.data
+
+    except Exception as e:
+        print(f"ホームキャラ更新失敗: {e}")
+        return False
+
+def has_character(uid, cid):
+    try:
+        result = (
+            supabase
+            .table("user_character")
+            .select("cid")
+            .eq("uid", uid)
+            .eq("cid", cid)
+            .execute()
+        )
+
+        return len(result.data) > 0
+
+    except Exception as e:
+        print(f"所持確認失敗: {e}")
+        return False
+    
+def get_character_info(cid):
+    try:
+        result = (
+            supabase
+            .table("characters")
+            .select("name, img1")
+            .eq("cid", cid)
+            .single()
+            .execute()
+        )
+
+        return result.data
+
+    except Exception as e:
+        print(f"キャラ名取得失敗: {e}")
+        return None
