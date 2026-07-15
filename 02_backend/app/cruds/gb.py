@@ -22,19 +22,28 @@ def update_gb(uid, gb):
         return False
 
 #交換によるgb付与
-def add_gb_fot_conversation(my_id, my_grade, tar_id, tar_grade):
+def add_gb(my_id, my_grade, tar_id, tar_grade, flag):
     try:
-        gb = calc_exchange_gb(my_grade, tar_grade)
+        if flag == 1:
+            gb = calc_conversation_gb(my_grade, tar_grade)
+        elif flag == 2:
+            gb = calc_exchange_gb(my_grade, tar_grade)
 
         update_gb(my_id, gb)
         update_gb(tar_id, gb)
-        return True
+        return gb
     except Exception as e:
         print(f"交換によるGB付与失敗: {e}")
         return False
 
-def calc_exchange_gb(my_grade, tar_grade):
+def calc_conversation_gb(my_grade, tar_grade):
     if my_grade == tar_grade:
         return 32
     else:
         return 16
+
+def calc_exchange_gb(my_grade, tar_grade):
+    if my_grade == tar_grade:
+        return 64
+    else:
+        return 128

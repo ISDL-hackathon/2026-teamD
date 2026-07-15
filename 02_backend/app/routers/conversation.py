@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from app.cruds.conversation import get_num_is_staying, select_user, get_tar_id, finish_conversation
 from app.cruds.users import get_grade
 from app.gemini import create_question
-from app.cruds.gb import add_gb_fot_conversation
+from app.cruds.gb import add_gb
 
 
 router = APIRouter(prefix="/staying", tags=["staying"])
@@ -34,7 +34,7 @@ def input_answer(request_data: ConversationRequest):
     tar_grade = tar_info["tar_grade"]
 
     print(tar_id, tar_grade)
-    add_gb_fot_conversation(my_id, my_grade, tar_id, tar_grade)
+    add_gb(my_id, my_grade, tar_id, tar_grade, 1)
     print("GB付与完了")
     check = finish_conversation(my_id, tar_id)
     print(f"is_con :", check)

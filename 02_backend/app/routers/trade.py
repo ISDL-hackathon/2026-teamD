@@ -4,6 +4,7 @@ from pydantic import BaseModel
 
 from app.routers.qr import trade_create_qr
 from app.cruds.users import get_name, get_grade
+from app.cruds.gb import add_gb
 from app.cruds.trade import (
     add_my_uid,
     add_tar_uid,
@@ -11,9 +12,11 @@ from app.cruds.trade import (
     add_trade_character,
     get_opponent_uid,
     select_trade_characters,
-    get_my_flag_tar_flag,
     execute_trade,
-    get_trade_id
+    get_trade_id,
+    get_is_add_gb,
+    get_trade_info,
+    finish_trade
 )
 
 router = APIRouter(prefix="/trading", tags=["trading"])
@@ -38,6 +41,10 @@ class TradingRequest(BaseModel):
 
 class TradingCompleteRequest(BaseModel):
     uid: int
+
+class TradeingAddGbRequest(BaseModel):
+    uid: int
+
 #トレードで使用するQRを見せる
 @router.post("/showQR")
 def trade_show_qr(request_data: TradingShowRequest):
@@ -118,9 +125,6 @@ def complete_trade(request_data: TradingCompleteRequest):
 
     uid = request_data.uid
 
-
-
-
     trade_id = get_trade_id(uid)
 
     character = execute_trade(trade_id, uid)
@@ -130,5 +134,38 @@ def complete_trade(request_data: TradingCompleteRequest):
             "message": "交換失敗"
         }
     print(character)
-
     return character
+
+@router.post("/gb")
+def add_gb_for_trade(request_data: TradeingAddGbRequest):
+    uid = request_data.uid
+    trade_id = get_trade_id(uid)
+    if trade_id is None:
+        return {"status": "error", "message": "トレードが見つかりません"}
+
+    if not get_is_add_gb(trade_id):
+        return {"status": "error", "message": "GB付与フェーズではありません"}
+
+    trade_info = get_trade_info(trade_id)
+    trade = trade_info[0]
+    if trade_info is None:
+        return {"status": "error"}
+
+    my_uid = trade["my_uid"]
+    tar_uid = trade["tar_uid"]
+
+    my_grade = trade["my_user"]["grade"]
+    tar_grade = trade["tar_user"]["grade"]
+
+    print(my_uid, my_grade)
+    print(tar_uid, tar_grade)
+
+    # is_add_gb を True → False に更新できた人だけGB付与
+    result = finish_trade(trade_id)
+
+    if result:
+        add_gb(my_uid, my_grade, tar_uid, tar_grade, 2)
+        print("GB付与完了")
+        return {"status": "success"}
+
+    return {"status": "success", "message": "GBは既に付与済み"}

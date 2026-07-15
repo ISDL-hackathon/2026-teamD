@@ -55,7 +55,7 @@ def get_trade_id(uid):
             .table("trade")
             .select("trade_id")
             .or_(f"my_uid.eq.{uid},tar_uid.eq.{uid}")
-            .eq("is_trade", True)
+            .eq("is_trade", False)
             .execute()
         )
 
@@ -70,6 +70,51 @@ def get_trade_id(uid):
         print(f"trade_id取得失敗: {e}")
         return None
     
+def get_is_add_gb(trade_id):
+    try:
+        result = (
+            supabase
+            .table("trade")
+            .select("is_add_gb")
+            .eq("trade_id", trade_id)
+            .execute()
+        )
+
+        print(f"is_add_gb:", result.data)
+
+        if not result.data:
+            return None
+
+        return result.data[0]["is_add_gb"]
+
+    except Exception as e:
+        print(f"trade_id取得失敗: {e}")
+        return None
+
+def get_trade_info(trade_id):
+    try:
+        result = (
+            supabase
+            .table("trade")
+            .select("""
+                my_uid,
+                tar_uid,
+                my_user:users!trade_my_uid_fkey(
+                    grade
+                ),
+                tar_user:users!table_tar_uid_fkey(
+                    grade
+                )
+            """)
+            .eq("trade_id", trade_id)
+            .execute()
+        )
+        print(result.data)
+        return result.data
+    except Exception as e:
+        print(f"gradeの取得失敗: {e}")
+        return None
+    
 def get_opponent_uid(uid):
     try:
         result = (
@@ -77,7 +122,7 @@ def get_opponent_uid(uid):
             .table("trade")
             .select("my_uid, tar_uid")
             .or_(f"my_uid.eq.{uid},tar_uid.eq.{uid}")
-            .eq("is_trade", True)
+            .eq("is_trade", False)
             .execute()
         )
 
@@ -136,7 +181,10 @@ def select_trade_characters(my_uid, tar_uid):
                 if char.get("cid") not in my_cids and char.get("characters") is not None:
                     characters.append(char["characters"])
 
-        return characters
+        if characters:
+            return characters
+        else:
+            print("相手が所持していてあなたが所持していないキャラがいません")
 
     except Exception as e:
         print(f"相手キャラ取得失敗: {e}")
@@ -225,7 +273,7 @@ def add_trade_character(uid, cid):
             .table("trade")
             .select("trade_id, my_uid, tar_uid")
             .or_(f"my_uid.eq.{uid},tar_uid.eq.{uid}")
-            .eq("is_trade", True)
+            .eq("is_trade", False)
             .execute()
         )
 
@@ -290,21 +338,20 @@ def execute_trade(trade_id, uid):
         my_cid = trade["my_cid"]
         tar_cid = trade["tar_cid"]
 
-
-        
-        
-
         if my_uid == uid:
-            remove_character(my_uid, tar_cid)
-            print("削除完了")
-            add_character(my_uid, my_cid)
-            print("追加完了")
+            if trade["my_flag"]:
+                remove_character(my_uid, tar_cid)
+                print("削除完了")
+                add_character(my_uid, my_cid)
+                print("追加完了")
         else :
-            remove_character(tar_uid, my_cid)
-            print("削除完了")
-            # 追加
-            add_character(tar_uid, tar_cid)
-            print("追加完了")
+            if trade["tar_flag"]:
+                remove_character(tar_uid, my_cid)
+                print("削除完了")
+                # 追加
+                add_character(tar_uid, tar_cid)
+                print("追加完了")
+
         # ★自分の交換完了フラグをOFF
         if uid == my_uid:
             supabase \
@@ -345,7 +392,7 @@ def execute_trade(trade_id, uid):
             supabase \
                 .table("trade") \
                 .update({
-                    "is_trade": False
+                    "is_add_gb": True
                 }) \
                 .eq("trade_id", trade_id) \
                 .execute()
@@ -472,4 +519,20 @@ def check_trade_character(my_uid, tar_uid, cid):
 
     except Exception as e:
         print(f"交換可能キャラ確認失敗:{e}")
+        return False
+    
+def finish_trade(trade_id):
+    try:
+        response = (
+            supabase.table("trade")
+            .update({"is_add_gb": False})
+            .eq("trade_id", trade_id)
+            .eq("is_add_gb", True)
+            .execute()
+        )
+
+        return response.data
+
+    except Exception as e:
+        print(f"is_add_gb更新失敗: {e}")
         return False
