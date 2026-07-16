@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import FooterNav from "@/components/FooterNav";
 import { api } from "../../auth/api"; 
-import UserHeader from "../../../components/UserHeader";
+import UserHeader from "../../../components/UserHeader"; 
 
 interface CharacterProfile {
   cid: number;

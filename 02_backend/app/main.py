@@ -48,6 +48,7 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:3000",
         "http://127.0.0.1:3000",
+        "https://two026-teamd-nbf9.onrender.com",
         # 必要に応じて、今後デプロイするフロントのURLもここに追加    ,
     ],
     allow_credentials=True,

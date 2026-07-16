@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Scanner } from '@yudiel/react-qr-scanner';
 import FooterNav from "@/components/FooterNav";
-import UserHeader from "@/components/UserHeader"; 
+import UserHeader from "../../../components/UserHeader"; 
 import { api } from '../../auth/api';
 
 type Step = 
