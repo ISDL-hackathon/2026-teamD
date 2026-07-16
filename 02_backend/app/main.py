@@ -13,7 +13,8 @@ from app.routers import (
     qr,
     users,
     gb,
-    trade
+    trade,
+    login
 )
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -60,6 +61,7 @@ def root():
     return {
         "message": "FastAPI is running!"
     }
+    
 
 app.include_router(gatya.router)
 app.include_router(users.router)
@@ -69,6 +71,8 @@ app.include_router(conversation.router)
 app.include_router(qr.router)
 app.include_router(character.router)
 app.include_router(trade.router)
+
+app.include_router(login.router)
 
 if __name__ == "__main__":
     uvicorn.run("app.main:app", host="127.0.0.1", port=8000, reload=True)

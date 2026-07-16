@@ -19,9 +19,8 @@ def change_staying_flag(current_user=Depends(get_current_user)):
     print(f"フロントから呼び出されました！ UID: {uid}")
 
     if get_staying_flag(uid) == False:
-        change_staying_flag_db(uid, True)
         save_start_time(uid, datetime.now(timezone.utc))
-
+        change_staying_flag_db(uid, True)
     else:
         print(f"滞在しています．uid:", uid)
         return False

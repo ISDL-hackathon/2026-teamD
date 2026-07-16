@@ -46,23 +46,32 @@ def get_character_profile(request_data: CharacterProfileRequest, current_user=De
 
 
 @router.post("/home-character")
-def set_home_character(request_data: HomeCharacterRequest, current_user=Depends(get_current_user)):
-    uid = current_user["uid"]
-    cid = request_data.cid
-    result = update_home_character(uid, cid)
-    char_info = get_character_info(cid)
+def set_home_character(
+    request_data: HomeCharacterRequest,
+    current_user=Depends(get_current_user)
+):
+    result = set_home_character_service(
+        current_user["uid"],
+        request_data.cid
+    )
 
-    if not result:
+    if result is None:
         return {
             "status": "error",
             "message": "所持していないキャラクターです"
         }
 
-    name = char_info["name"]
-    img1 = char_info["img1"]
+    return result
+
+def set_home_character_service(uid: int, cid: int):
+    result = update_home_character(uid, cid)
+    if not result:
+        return None
+
+    char_info = get_character_info(cid)
 
     return {
         "cid": cid,
-        "name": name,
-        "img1": img1
+        "name": char_info["name"],
+        "img1": char_info["img1"]
     }

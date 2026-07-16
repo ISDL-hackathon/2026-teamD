@@ -34,8 +34,10 @@ def get_start_time(uid):
     try:
         response = supabase.table("users").select("stay_start_time").eq("uid", uid).single().execute()
         start_time = datetime.fromisoformat(
-            response.data["stay_start_time"]
+            start_time = response.data["stay_start_time"]
         )
+        print(response.data["stay_start_time"])
+        print(type(response.data["stay_start_time"]))
         print(f"start time :", start_time)
         return start_time
     except Exception as e:

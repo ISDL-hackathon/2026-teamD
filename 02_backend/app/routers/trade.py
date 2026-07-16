@@ -47,14 +47,15 @@ def trade_scan_qr(request_data: TradingScanRequest, current_user=Depends(get_cur
     try:
         tar_uid = current_user["uid"]
         trade_id = request_data.trade_id
-        add_tar_uid(tar_uid, trade_id)
-        tar_name = get_name(tar_uid)
-        tar_grade = get_grade(tar_uid)
-        print(f"交換する相手の名前は{tar_name}，学年は{tar_grade}ですか？")
-        return {
-            "name": tar_name,
-            "grade": tar_grade
-        }
+        if add_tar_uid(tar_uid, trade_id):
+            tar_name = get_name(tar_uid)
+            tar_grade = get_grade(tar_uid)
+            print(f"交換する相手の名前は{tar_name}，学年は{tar_grade}ですか？")
+            return {
+                "name": tar_name,
+                "grade": tar_grade
+            }
+        return False
     except Exception as e:
         print(f"相手を読み込むこと失敗: {e}")
         return False    

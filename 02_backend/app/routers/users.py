@@ -13,11 +13,10 @@ def read_user_me(current_user = Depends(get_current_user)):
     return {
         "status": "success",
         "user": {
-            "uid": current_user.uid,
-            "name": current_user.name,
-            "grade": current_user.grade,
-            "sid": current_user.sid,
-            "gb": current_user.gb  # 所持GBなど
+            "uid": current_user["uid"],
+            "name": current_user["name"],
+            "grade": current_user["grade"],
+            "gb": current_user["gb"],
         }
     }
 

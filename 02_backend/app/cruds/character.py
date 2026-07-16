@@ -188,7 +188,6 @@ def update_home_character(uid, cid):
         # 所持確認
         if not has_character(uid, cid):
             return False
-
         response = (
             supabase
             .table("home_character")
@@ -198,6 +197,7 @@ def update_home_character(uid, cid):
             })
             .execute()
         )
+        print(response.data)
 
         return response.data
 
@@ -215,7 +215,6 @@ def has_character(uid, cid):
             .eq("cid", cid)
             .execute()
         )
-
         return len(result.data) > 0
 
     except Exception as e:

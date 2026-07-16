@@ -20,20 +20,45 @@ def add_my_uid(my_uid):
 #tradeテーブルにtar_uid追加
 def add_tar_uid(tar_uid, trade_id):
     try:
-        response = (
-            supabase.table("trade")
-            .update({
-                "tar_uid": tar_uid
-            })
-            .eq("trade_id", trade_id)
-            .execute()
-        )
-        print(response.data)
-        return response.data
+        if check_my_tar_uid(tar_uid, trade_id):
+            response = (
+                supabase.table("trade")
+                .update({
+                    "tar_uid": tar_uid
+                })
+                .eq("trade_id", trade_id)
+                .execute()
+            )
+            print(response.data)
+            return response.data
+        else:
+            print("あなたのQRです")
+            return False
     except Exception as e:
         print(f"tar_uid登録失敗: {e}")
         return False
 
+def check_my_tar_uid(tar_uid, trade_id):
+    try:
+        response = (
+            supabase
+            .table("trade")
+            .select("my_uid")
+            .eq("trade_id", trade_id)
+            .single()
+            .execute()
+        )
+
+        my_uid = response.data["my_uid"]
+
+        # 自分自身ならFalse
+        if my_uid == tar_uid:
+            return False
+        return True
+    except Exception as e:
+        print(f"UID確認失敗: {e}")
+        return False
+    
 def change_trade_flag(trade_id, is_trade):
     try:
         response = (
