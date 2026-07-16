@@ -30,8 +30,10 @@ def end_staying(current_user=Depends(get_current_user)):
     end_time = datetime.now(timezone.utc)
     start_time = get_start_time(uid)
 
-    if start_time is None:
-        raise HTTPException(status_code=400, detail="開始時間が記録されていません")
+    if not start_time or isinstance(start_time, bool):
+        print("⚠️ 滞在開始時間が設定されていない、または不正です。処理をスキップします。")
+        # 必要に応じて、ここで例外を投げるか、正常終了としてダミーを返す
+        return {"status": "ok", "message": "滞在時間が存在しないため、時間は計算されませんでした"}
     
     # 💡 タイムゾーンの不一致エラー（TypeError）を防ぐ安全処理
     if start_time.tzinfo is None:

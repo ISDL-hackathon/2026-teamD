@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from app.cruds.users import update_user_profile
 from app.cruds.auth import get_current_user  # 💡プロジェクトの認証関数に合わせてください
 from app.cruds.get_users_table import get_user_by_uid, update_user_gb  # 💡CRUD側の関数
 from app import supabase

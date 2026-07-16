@@ -22,7 +22,7 @@ def tutorial_gb_endpoint(current_user=Depends(get_current_user)):
 def get_tutorial(uid):
     print("チュートリアルGB配布実装中")
     try:
-        update_gb(uid, 16)
+        update_gb(uid, 128)
         print("チュートリアルGB配布成功")
         return True
     except Exception as e:

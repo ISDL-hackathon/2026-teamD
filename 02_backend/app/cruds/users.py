@@ -1,6 +1,6 @@
 from app import supabase
 
-def create_user_profile(auth_id, name, grade):
+def create_user_profile(auth_id, name, grade, subject_uid=None):
     try:
         response = (
             supabase
@@ -8,7 +8,8 @@ def create_user_profile(auth_id, name, grade):
             .insert({
                 "auth_id": auth_id,
                 "name": name,
-                "grade": grade
+                "grade": grade,
+                "subject_uid": subject_uid # ⭐️ subject_uid も一緒にインサート
             })
             .execute()
         )

@@ -8,30 +8,61 @@ import { api } from "../../auth/api";
 
 type GachaStep = "BASE" | "CONFIRM" | "VIDEO" | "RESULT_IMAGE" | "FINAL_SUMMARY";
 
-// ⭐️ ガチャのコスト設定を修正（1回 16GB / 8回 128GB）
+// ⭐️ キャラクターの型定義（rare を追加しました）
+interface DrawnCharacter {
+  cid: number;
+  name: string;
+  prefix?: string;
+  img1?: string;
+  quote?: string;
+  rare?: string; // 🌟 レアリティ表示用のプロパティを追加
+}
+
 const GACHA_COST_PER_DRAW = 16;
 
 export default function GachaPage() {
   const router = useRouter();
   const [step, setStep] = useState<GachaStep>("BASE");
   const [gachaType, setGachaType] = useState<1 | 8>(1);
-  const [resultImageIndex, setResultImageIndex] = useState<number>(2);
+  
+  const [resultImageIndex, setResultImageIndex] = useState<number>(0);
   const [isMoreOpen, setIsMoreOpen] = useState(false);
   const [loading, setLoading] = useState(false); 
   
-  // ユーザーの現在の所持GBを管理するステート
+  // ユーザーの現在の所持GB
   const [userGb, setUserGb] = useState<number | null>(null);
 
-  // マウント時、および「BASE」画面に戻ったタイミングで最新のGBを取得する
+  // ガチャで当たったキャラたちを格納する配列
+  const [drawnCharacters, setDrawnCharacters] = useState<DrawnCharacter[]>([]);
+
+  // 最新のGBを取得する（ネスト構造対応版）
   useEffect(() => {
     const fetchUserGb = async () => {
       try {
         const response = await api.get("/users/me");
-        if (response.data && typeof response.data.gb === "number") {
-          setUserGb(response.data.gb);
-          console.log(`現在の所持GB: ${response.data.gb}`);
+        console.log("✏️ [DEBUG] GET /users/me response:", response.data);
+        
+        if (response.data) {
+          const userObj = response.data.user; 
+          const rawGb = userObj ? userObj.gb : response.data.gb; 
+          
+          if (rawGb !== undefined && rawGb !== null) {
+            const gbNum = Number(rawGb); 
+            if (!isNaN(gbNum)) {
+              setUserGb(gbNum);
+              console.log(`🎉 所持GBの同期に成功しました！: ${gbNum} GB`);
+              return;
+            }
+          }
+
+          const keys = userObj ? Object.keys(userObj).join(", ") : "なし";
+          alert(
+            `⚠️【警告】userデータは届きましたが、その中に 'gb' がありません。\n\n` +
+            `userオブジェクト内のキー一覧: [ ${keys} ]\n\n` +
+            `※ 'gb' が無い場合は、FastAPI側の response_model 等で gb が除外されている可能性があります。`
+          );
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error("ユーザー情報の取得に失敗しました:", error);
       }
     };
@@ -41,29 +72,30 @@ export default function GachaPage() {
     }
   }, [step]);
 
-  // ガチャボタン（1回 / 8回）を押したとき
   const handleGachaStart = (type: 1 | 8) => {
-    const requiredGb = type * GACHA_COST_PER_DRAW; // 1回なら 16GB, 8回なら 128GB
+    const requiredGb = type * GACHA_COST_PER_DRAW;
 
-    // 所持GBが足りない場合はここでブロック！
-    if (userGb !== null && userGb < requiredGb) {
+    if (userGb === null) {
+      alert("ユーザー情報を読み込み中です。しばらくしてから再度お試しください。");
+      return;
+    }
+
+    if (userGb < requiredGb) {
       alert(`GB（ガチャパワー）が足りません！\n所持: ${userGb} GB / 必要: ${requiredGb} GB`);
       return; 
     }
 
     setGachaType(type);
-    setResultImageIndex(2); 
+    setResultImageIndex(0); 
     setStep("CONFIRM");
   };
 
-  // ダイアログで「はい」を押したとき
   const handleConfirmYes = async () => {
     if (loading) return;
 
-    // 「はい」を押したタイミングでも二重チェック
     const requiredGb = gachaType * GACHA_COST_PER_DRAW;
     if (userGb !== null && userGb < requiredGb) {
-      alert("GB（ガチャパワー）が不足しているため、ガチャを実行できません。");
+      alert("GB（ギガバイト）が不足しているため、ガチャを実行できません。");
       setStep("BASE");
       return;
     }
@@ -75,12 +107,24 @@ export default function GachaPage() {
         cnt: gachaType, 
       });
 
-      if (response.status === 200 || response.data) {
-        console.log("🎉 ガチャキャラが正常にDBに保存または更新されました！");
+      if (
+        response.status === 200 && 
+        response.data && 
+        response.data.status === "success" && 
+        response.data.character
+      ) {
+        console.log("🎉 ガチャ結果を正常に受信しました！", response.data);
+        
+        const charData = response.data.character;
+        const characters = Array.isArray(charData) ? charData : [charData];
+        setDrawnCharacters(characters);
+        setResultImageIndex(0); 
+
         setStep("VIDEO");
       } else {
-        console.error("ガチャの保存に失敗しました(サーバーエラー)");
-        alert("ガチャの処理中にエラーが発生しました。");
+        const errMsg = response.data?.message || "ガチャの処理中にエラーが発生しました。";
+        console.error("ガチャ失敗:", errMsg);
+        alert(errMsg);
         setStep("BASE");
       }
     } catch (error: any) {
@@ -92,17 +136,15 @@ export default function GachaPage() {
     }
   };
 
-  // 動画演出が終了したとき
   const handleVideoEnded = () => {
     setStep("RESULT_IMAGE");
   };
 
-  // 結果タップ時の挙動
   const handleResultImageTap = () => {
     if (gachaType === 1) {
       setStep("FINAL_SUMMARY");
     } else {
-      if (resultImageIndex < 9) {
+      if (resultImageIndex < drawnCharacters.length - 1) {
         setResultImageIndex((prev) => prev + 1);
       } else {
         setStep("FINAL_SUMMARY");
@@ -110,15 +152,15 @@ export default function GachaPage() {
     }
   };
 
-  // 終了してトップに戻る
   const handleFinalSummaryTap = () => {
     setStep("BASE");
   };
 
   const confirmImg = gachaType === 1 ? "/gatya1_1.png" : "/gatya8_1.png";
   const videoSrc = gachaType === 1 ? "/gatya1.mp4" : "/gatya8.mp4";
-  const resultImg = gachaType === 1 ? "/gatya1_2.png" : `/gatya8_${resultImageIndex}.png`;
-  const summaryImg = gachaType === 1 ? "/gatya1_3.png" : "/gatya8_10.png";
+
+  // 現在表示中のキャラクターオブジェクト
+  const currentCharacter = drawnCharacters[resultImageIndex];
 
   return (
     <div className="flex h-screen w-screen items-center justify-center bg-[#222]">
@@ -134,7 +176,6 @@ export default function GachaPage() {
               <UserHeader />
             </div>
 
-            {/* 1回ガチャ */}
             <button
               onClick={() => handleGachaStart(1)}
               className="absolute left-[6%] bottom-[16%] h-[12%] w-[42%] bg-transparent active:bg-white/10 rounded-[20px] transition-colors z-10"
@@ -142,7 +183,6 @@ export default function GachaPage() {
               aria-label="1回ガチャ"
             />
 
-            {/* 8回ガチャ */}
             <button
               onClick={() => handleGachaStart(8)}
               className="absolute right-[6%] bottom-[16%] h-[12%] w-[42%] bg-transparent active:bg-white/10 rounded-[20px] transition-colors z-10"
@@ -150,7 +190,6 @@ export default function GachaPage() {
               aria-label="8回ガチャ"
             />
 
-            {/* 最下部ナビゲーション */}
             <nav className="absolute inset-x-0 bottom-0 h-20 bg-transparent flex z-20">
               <button onClick={() => router.push("/character")} className="flex-1 bg-transparent active:bg-white/10" aria-label="キャラ" />
               <button onClick={() => setStep("BASE")} className="flex-1 bg-transparent active:bg-white/10" aria-label="ガチャ" />
@@ -165,7 +204,6 @@ export default function GachaPage() {
         {step === "CONFIRM" && (
           <div className="relative h-full w-full bg-black">
             <img src={confirmImg} alt="確認ダイアログ" className="h-full w-full object-contain" />
-            
             <div className="absolute inset-x-0 bottom-[19%] flex justify-center gap-[10%] px-[15%]">
               <button 
                 onClick={handleConfirmYes} 
@@ -201,16 +239,102 @@ export default function GachaPage() {
         )}
 
         {/* --- STEP 4: 結果画像演出 --- */}
-        {step === "RESULT_IMAGE" && (
-          <div onClick={handleResultImageTap} className="trigger-full-flash h-full w-full bg-black cursor-pointer relative">
-            <img src={resultImg} alt="ガチャ結果" className="h-full w-full object-contain" />
+        {step === "RESULT_IMAGE" && currentCharacter && (
+          <div 
+            onClick={handleResultImageTap} 
+            className="relative h-full w-full bg-black cursor-pointer overflow-hidden flex flex-col justify-between"
+          >
+            <div className="absolute top-[12%] left-0 w-full text-center z-20 px-4">
+              <p className="text-yellow-400 font-bold text-xs tracking-wider uppercase drop-shadow-[0_1.5px_2px_rgba(0,0,0,0.8)] animate-pulse">
+                NEW CHARACTER!
+              </p>
+              <h2 className="text-white font-black text-2xl mt-1 tracking-wide drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+                {currentCharacter.prefix ? `${currentCharacter.prefix} ` : ""}{currentCharacter.name}
+              </h2>
+            </div>
+
+            <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex items-center justify-center w-full h-[65%] z-0">
+              <img 
+                src={currentCharacter.img1 || "/fallback_character.png"} 
+                alt={currentCharacter.name} 
+                className="max-h-full max-w-full object-contain animate-fade-in"
+              />
+            </div>
+
+            <div className="absolute bottom-0 left-0 w-full h-[40%] bg-gradient-to-t from-black via-black/85 to-transparent z-10 pointer-events-none" />
+
+            <div className="absolute bottom-[10%] left-0 w-full px-8 z-20 text-center">
+              {currentCharacter.quote && (
+                <p className="text-white text-base font-bold leading-relaxed tracking-wider drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+                  「 {currentCharacter.quote} 」
+                </p>
+              )}
+            </div>
           </div>
         )}
 
-        {/* --- STEP 5: 最終まとめ画像 --- */}
+        {/* --- STEP 5: 🌟 最終まとめ（ポップアップ一覧形式へ完全リニューアル） --- */}
         {step === "FINAL_SUMMARY" && (
-          <div onClick={handleFinalSummaryTap} className="h-full w-full bg-black cursor-pointer">
-            <img src={summaryImg} alt="リザルトまとめ" className="h-full w-full object-contain" />
+          <div className="absolute inset-0 bg-black/80 flex items-center justify-center p-6 z-30 animate-fade-in">
+            <div className="w-full max-h-[75%] bg-gradient-to-b from-[#1a1a1c] to-[#0a0a0c] border border-yellow-500/30 rounded-2xl shadow-[0_0_25px_rgba(234,179,8,0.25)] p-5 flex flex-col">
+              
+              {/* ヘッダーエリア */}
+              <div className="text-center mb-4 border-b border-white/10 pb-3">
+                <h3 className="text-lg font-black text-yellow-400 tracking-widest">
+                  GACHA RESULT
+                </h3>
+                <p className="text-[10px] text-slate-400 mt-0.5">
+                  獲得したメンバー一覧
+                </p>
+              </div>
+
+              {/* スクロール可能なキャラクターリスト */}
+              <div className="flex-1 overflow-y-auto space-y-2.5 pr-1">
+                {drawnCharacters.map((char, index) => (
+                  <div 
+                    key={`${char.cid}-${index}`}
+                    className="flex items-center gap-3 bg-white/5 border border-white/5 rounded-xl p-2.5 hover:bg-white/10 transition-colors"
+                  >
+                    {/* 左側: レアリティバッジ（APIから渡らない場合は仮で"SSR"を表示） */}
+                    <span className="inline-block text-[9px] font-black px-1.5 py-0.5 rounded bg-gradient-to-r from-yellow-400 to-amber-500 text-black shadow-sm tracking-wide shrink-0">
+                      {char.rare || "SSR"}
+                    </span>
+
+                    {/* 中央: prefix + name */}
+                    <div className="flex-1 truncate">
+                      <p className="text-white font-black text-sm truncate">
+                        {char.prefix ? (
+                          <span className="text-yellow-400/80 mr-1 font-bold text-xs">
+                            [{char.prefix}]
+                          </span>
+                        ) : null}
+                        {char.name}
+                      </p>
+                    </div>
+                    
+                    {/* 右側: ミニ顔グラフィック（演出用） */}
+                    {char.img1 ? (
+                      <img 
+                        src={char.img1} 
+                        alt="" 
+                        className="w-8 h-8 rounded-full object-cover object-top border border-white/10 bg-neutral-800 shrink-0"
+                      />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-neutral-800 flex items-center justify-center text-xs shrink-0 border border-white/10">👤</div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* 決定ボタン */}
+              <button
+                onClick={handleFinalSummaryTap}
+                className="w-full mt-5 bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-400 hover:to-amber-400 text-black font-black py-3 rounded-xl shadow-lg active:scale-95 transition-all text-center text-xs tracking-widest"
+              >
+                閉じる
+              </button>
+
+            </div>
           </div>
         )}
 

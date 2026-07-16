@@ -5,38 +5,37 @@ import { useRouter } from 'next/navigation';
 // 📸 QRスキャナーと生成器をインポート
 import { Scanner } from '@yudiel/react-qr-scanner';
 import { QRCodeSVG } from 'qrcode.react';
-import { api } from '../../../auth/api'; // 👈 パスを合わせてインポート
+import { api } from '../../../auth/api'; 
 
 export default function ConversationPage() {
   const router = useRouter();
   
-  // 💡 モード管理に 'input_answer' (回答入力) を追加しました！
   const [mode, setMode] = useState<'select' | 'show_qr' | 'scan_qr' | 'input_answer'>('select');
   const [errorMessage, setErrorMessage] = useState('');
   
-  // 💬 Geminiから動的に取得する質問を管理するステート
+  // 💬 Geminiから動的に取得する自分の質問（ミッション）を管理するステート
   const [missionQuestion, setMissionQuestion] = useState<string>('ミッションを生成中...');
+
+  // 💬 スキャンした相手のミッション（質問）を管理するステート
+  const [opponentMission, setOpponentMission] = useState<string>('');
 
   // ✍️ ユーザーが入る回答テキストを管理するステート
   const [answer, setAnswer] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const myGrade = 'B1';   // 自分の学年（仮）
-  const missionId = 42;   // 現在のミッションID（仮）
+  const myGrade = 'B1';   
+  const missionId = 42;   
 
-  // 💡 自分のQRコードには、最新仕様（grade, mission_idのみ）のJSONを埋め込みます
   const myQrData = JSON.stringify({
     grade: myGrade,
     mission_id: missionId
   });
 
-  // 🌟 画面表示時にバックエンドからGeminiのお題（質問）を取得する処理
+  // 画面表示時にバックエンドからGeminiのお題を取得
   useEffect(() => {
     const fetchMission = async () => {
       try {
         const response = await api.post('/staying/conversation');
-        console.log("🤖 Geminiミッション取得結果:", response.data);
-        
         if (typeof response.data === 'string') {
           setMissionQuestion(response.data);
         } else if (response.data && response.data.message) {
@@ -72,12 +71,39 @@ export default function ConversationPage() {
         mission_id: Number(qrData.mission_id)  
       };
 
-      console.log("🚀 [DEBUG] サーバーに送るデータ（トークンはヘッダーに自動付与）:", payload);
+      console.log("🚀 [DEBUG] サーバーに送るデータ:", payload);
 
       const response = await api.post('/qr/scanQR', payload);
 
       if (response.status === 200 || response.data) {
-        // 🌟 画面遷移(router.push)ではなく、同じ画面の中で「入力モード」へ切り替える！
+        
+        // 🌟【重要】「会話開始可能」など、お題ではないシステム文を弾くフィルタ
+        const systemKeywords = ["会話開始可能", "成功", "success", "ok", "OK", "完了", "接続完了"];
+        
+        const candidates = [
+          response.data.question,
+          response.data.mission,
+          response.data.opponent_mission,
+          response.data.opponent_question,
+          response.data.target_mission,
+          response.data.message // messageは一番最後にチェック
+        ];
+
+        // システム的な定型メッセージではなく、お題として適した文字列を自動で選定
+        let finalMissionText = "";
+        for (const val of candidates) {
+          if (val && typeof val === 'string' && !systemKeywords.includes(val.trim()) && val.trim().length > 0) {
+            finalMissionText = val.trim();
+            break;
+          }
+        }
+
+        // 万が一、有効なお題テキストが一切取れなかった場合のフォールバック
+        if (!finalMissionText) {
+          finalMissionText = "相手の最近ハマっていることを聞き出してみよう！";
+        }
+
+        setOpponentMission(finalMissionText);
         setMode('input_answer'); 
       } else {
         setErrorMessage('不正なQRコードか、ミッションの対象外の相手です。');
@@ -92,7 +118,7 @@ export default function ConversationPage() {
     }
   };
 
-  // ✍️ 回答を送信する処理（バックエンドの /staying/input を呼ぶ）
+  // 回答を送信する処理
   const handleAnswerSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!answer.trim()) {
@@ -103,14 +129,13 @@ export default function ConversationPage() {
     setIsSubmitting(true);
     setErrorMessage('');
     try {
-      // バックエンド側の仕様に合わせてデータを送信
       const response = await api.post('/staying/input', {
         answer: answer
       });
 
       if (response.data) {
         alert('🎉 ミッション完了！GBが追加されました！');
-        router.push('/dashboard'); // 終わったらホームに戻る
+        router.push('/dashboard'); 
       }
     } catch (error: any) {
       console.error("❌ 回答送信失敗:", error);
@@ -134,9 +159,9 @@ export default function ConversationPage() {
         padding: '24px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', alignItems: 'center'
       }}>
         
-        {/* 📝 Geminiからのお題表示エリア */}
+        {/* 📝 Geminiからのお題表示エリア（自分のミッション） */}
         <div style={{ backgroundColor: '#e8f0fe', padding: '16px', borderRadius: '12px', width: '100%', marginBottom: '24px', textAlign: 'center', border: '1px solid #1a73e8' }}>
-          <span style={{ fontSize: '12px', color: '#1a73e8', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>💬 Geminiからのミッション</span>
+          <span style={{ fontSize: '12px', color: '#1a73e8', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>💬 あなたの現在のミッション</span>
           <p style={{ fontSize: '16px', fontWeight: 'bold', margin: 0, color: '#1f3b4d' }}>
             {missionQuestion}
           </p>
@@ -216,12 +241,30 @@ export default function ConversationPage() {
           </div>
         )}
 
-        {/* 4️⃣ 🎉 【新規追加】答え入力モード */}
+        {/* 4️⃣ 🎉 答え入力モード */}
         {mode === 'input_answer' && (
           <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             <h3 style={{ fontSize: '18px', color: '#34a853', marginBottom: '8px', fontWeight: 'bold' }}>🎉 スキャン成功！</h3>
-            <p style={{ fontSize: '13px', color: '#5f6368', textAlign: 'center', marginBottom: '16px' }}>
-              リアルで話した内容や感想を入力して、GBをゲットしましょう！
+            
+            <div style={{ 
+              backgroundColor: '#fff9db', 
+              padding: '12px 16px', 
+              borderRadius: '8px', 
+              width: '100%', 
+              marginBottom: '16px', 
+              border: '1.5px solid #f59f00',
+              boxSizing: 'border-box'
+            }}>
+              <span style={{ fontSize: '11px', color: '#f59f00', fontWeight: 'bold', display: 'block', marginBottom: '2px' }}>
+                🗣️ 相手に聞き出すお題
+              </span>
+              <p style={{ fontSize: '14px', fontWeight: 'bold', margin: 0, color: '#1f3b4d', lineHeight: '1.4' }}>
+                「{opponentMission}」
+              </p>
+            </div>
+
+            <p style={{ fontSize: '12px', color: '#5f6368', textAlign: 'center', marginBottom: '16px' }}>
+              相手に上の質問を聞いてみて、その答えや感想を入力してください！
             </p>
             
             <form onSubmit={handleAnswerSubmit} style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -231,8 +274,8 @@ export default function ConversationPage() {
                   setAnswer(e.target.value);
                   setErrorMessage('');
                 }}
-                placeholder="会話の答えや感想を入力してください..."
-                rows={4}
+                placeholder="例：最近はサウナに週3でハマっているそうです！"
+                rows={3}
                 style={{
                   width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #dadce0',
                   fontSize: '14px', outline: 'none', resize: 'none', boxSizing: 'border-box'
@@ -255,5 +298,5 @@ export default function ConversationPage() {
 
       </div>
     </div>
-    );
+  );
 }

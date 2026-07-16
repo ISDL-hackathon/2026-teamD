@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import FooterNav from "@/components/FooterNav";
-import UserHeader from "../../../components/UserHeader"; // 👈 👑 共通ヘッダーをインポート！
+import UserHeader from "../../../components/UserHeader"; 
 import { api } from "../../auth/api"; 
+import Link from 'next/link';
 
 interface DbCharacterDetails {
   img1: string | null;
@@ -33,20 +33,7 @@ interface CharacterProfile {
   role?: string;
   quote?: string;
   birthday?: string;
-  group?: string;
 }
-
-const characterMasterData: Record<string, Partial<CharacterProfile>> = {
-  "永野喜大": { lab: "ISDL", town: "京都", hobby: "コード書き", role: "リーダー", quote: "よろしく！", birthday: "10月12日", group: "Rec班" },
-  "中村泰輔": { lab: "ISDL", town: "大阪", hobby: "読書", role: "開発", quote: "頑張ります。", birthday: "4月20日", group: "Dev班" },
-  "浄慶航太": { lab: "ISDL", town: "兵庫", hobby: "ドライブ, KPOP", role: "チーフ", quote: "後輩に仕事を振るのが得意です", birthday: "9月9日", group: "Rec班" },
-  "進慶航太": { lab: "ISDL", town: "兵庫", hobby: "ドライブ, KPOP", role: "チーフ", quote: "後輩に仕事を振るのが得意です", birthday: "9月9日", group: "Rec班" }, 
-  "淨慶航太": { lab: "ISDL", town: "兵庫", hobby: "ドライブ, KPOP", role: "チーフ", quote: "後輩に仕事を振るのが得意です", birthday: "9月9日", group: "Rec班" },
-  "倉貫翔真": { lab: "ISDL", town: "滋賀", hobby: "サウナ", role: "マネジメント", quote: "進捗どうですか？", birthday: "12月25日", group: "Rec班" },
-  "阿部勝寿": { lab: "ISDL", town: "大阪", hobby: "ゲーム", role: "開発", quote: "コツコツ進めます", birthday: "1月15日", group: "Dev班" },
-  "河村一樹": { lab: "ISDL", town: "奈良", hobby: "旅行", role: "デザイン", quote: "画面をかっこよくします！", birthday: "8月3日", group: "UI班" },
-  "疋田智佳子": { lab: "ISDL", town: "京都", hobby: "映画鑑賞", role: "企画", quote: "最高のアプリにしましょう", birthday: "5月17日", group: "UI班" },
-};
 
 export default function CharacterPage() {
   const [characters, setCharacters] = useState<CharacterProfile[]>([]);
@@ -76,20 +63,17 @@ export default function CharacterPage() {
             const cImg = inner?.img1 ? clean(inner.img1) : null;
             const cCid = item.cid || 0;
 
-            const master = characterMasterData[cName] || {};
-
             return {
               cid: cCid,
               name: cName,
               grade: cGrade,
               img1: cImg,
-              lab: clean(inner?.lab) || master.lab || "未設定",
-              town: clean(inner?.town) || master.town || "未設定",
-              hobby: clean(inner?.hobby) || master.hobby || "未設定",
-              role: clean(inner?.role) || master.role || "未設定",
-              quote: clean(inner?.quote) || master.quote || "自己紹介は未設定です。",
-              birthday: clean(inner?.birth) || master.birthday || "未設定",
-              group: master.group || "未設定"
+              lab: clean(inner?.lab) || "未設定",
+              town: clean(inner?.town) || "未設定",
+              hobby: clean(inner?.hobby) || "未設定",
+              role: clean(inner?.role) || "未設定",
+              quote: clean(inner?.quote) || "自己紹介は未設定です。",
+              birthday: clean(inner?.birth) || "未設定"
             };
           });
 
@@ -98,17 +82,8 @@ export default function CharacterPage() {
           setError("キャラクターの取得に失敗しました");
         }
       } catch (err) {
-        console.warn("API取得に失敗したため、フォールバックします:", err);
-        const mock = [
-          { cid: 1, name: "永野喜大", grade: "M2", img1: "https://eoaxgmhcsaowfycmuovr.supabase.co/storage/v1/object/public/character/nagano_1.png" },
-          { cid: 2, name: "中村泰輔", grade: "U4", img1: "https://eoaxgmhcsaowfycmuovr.supabase.co/storage/v1/object/public/character/nakamura_1.png" },
-          { cid: 3, name: "浄慶航太", grade: "M1", img1: "https://eoaxgmhcsaowfycmuovr.supabase.co/storage/v1/object/public/character/jokei_1.png" },
-          { cid: 6, name: "河村一樹", grade: "U4", img1: "https://eoaxgmhcsaowfycmuovr.supabase.co/storage/v1/object/public/character/kawamura_1.png" },
-        ].map(item => ({
-          ...item,
-          ...(characterMasterData[item.name] || {})
-        })) as CharacterProfile[];
-        setCharacters(mock);
+        console.error("APIからのキャラクター取得に失敗しました:", err);
+        setError("キャラクターデータの取得に失敗しました。電波環境をお確かめください。");
       } finally {
         setLoading(false);
       }
@@ -139,21 +114,18 @@ export default function CharacterPage() {
           const cName = clean(inner?.name);
           const cGrade = clean(inner?.grade);
           const cImg = inner?.img1 ? clean(inner.img1) : null;
-  
-          const master = characterMasterData[cName] || {};
 
           setDetailProfile({
             cid: currentListChar.cid,
             name: cName,
             grade: cGrade,
             img1: cImg,
-            lab: clean(inner?.lab) || master.lab || "未設定",
-            town: clean(inner?.town) || master.town || "未設定",
-            hobby: clean(inner?.hobby) || master.hobby || "未設定",
-            role: clean(inner?.role) || master.role || "未設定",
-            quote: clean(inner?.quote) || master.quote || "自己紹介は未設定です。",
-            birthday: clean(inner?.birth) || master.birthday || "未設定",
-            group: master.group || "未設定"
+            lab: clean(inner?.lab) || "未設定",
+            town: clean(inner?.town) || "未設定",
+            hobby: clean(inner?.hobby) || "未設定",
+            role: clean(inner?.role) || "未設定",
+            quote: clean(inner?.quote) || "自己紹介は未設定です。",
+            birthday: clean(inner?.birth) || "未設定"
           });
         }
       } catch (err) {
@@ -211,7 +183,7 @@ export default function CharacterPage() {
       className="relative w-full max-w-[400px] h-screen overflow-hidden bg-cover bg-center mx-auto text-white"
       style={{ backgroundImage: `url('/chara_table.png')`, backgroundColor: '#121212' }}
     >
-      {/* 👑 共通最上部ヘッダー（一覧表示のときだけ絶対配置で重ねる） */}
+      {/* 👑 共通最上部ヘッダー */}
       {selectedChar === null && (
         <div className="absolute top-0 left-0 w-full z-20">
           <UserHeader />
@@ -219,45 +191,50 @@ export default function CharacterPage() {
       )}
 
       {selectedChar === null ? (
-        /* 
-          💡 pt-[70px] に変更して、上部に固定配置された UserHeader と
-          「所持キャラクター一覧」の見出しテキストが被らないように余白を設定しています。
-        */
         <div className="w-full h-full px-4 pt-[70px] pb-24 overflow-y-auto bg-black/40 backdrop-blur-sm">
           <h2 className="text-lg font-black text-[#f1c40f] mb-3 border-b border-white/20 pb-1.5">
             所持キャラクター一覧
           </h2>
 
-         {loading ? (
-  <p className="text-center text-sm text-slate-400 mt-10">読み込み中...</p>
-) : (
-  <div className="grid grid-cols-3 gap-2">
-    {characters.map((item, index) => (
-      <div 
-        // ⭕ ここを修正！「ID + 連番」にして絶対に重複しないようにします
-        key={`${item.cid}-${index}`} 
-        onClick={() => setSelectedIndex(index)}
-        className="relative aspect-square rounded-lg overflow-hidden border border-white/10 bg-[#1a1a1a]/90 cursor-pointer shadow-md active:scale-95 transition-transform"
-      >
-        {item.img1 ? (
-          <img src={item.img1} alt={item.name} className="w-full h-full object-cover object-top" />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-xl bg-slate-800">👤</div>
-        )}
-        <div className="absolute bottom-0 left-0 w-full bg-gradient-to-t from-black via-black/90 to-transparent p-1 text-center">
-          <p className="text-[8px] text-[#f1c40f] font-bold leading-none m-0">{item.grade}</p>
-          <p className="text-[10px] font-black truncate m-0 mt-0.5">{item.name}</p>
-        </div>
-      </div>
-    ))}
-  </div>
-)}
+          {loading ? (
+            <p className="text-center text-sm text-slate-400 mt-10">読み込み中...</p>
+          ) : error ? (
+            <p className="text-center text-sm text-red-400 mt-10">⚠️ {error}</p>
+          ) : (
+            <>
+              <div className="grid grid-cols-3 gap-2">
+                {characters.map((item, index) => (
+                  <div 
+                    key={`${item.cid}-${index}`} 
+                    onClick={() => setSelectedIndex(index)}
+                    className="relative aspect-square rounded-lg overflow-hidden border border-white/10 bg-[#1a1a1a]/90 cursor-pointer shadow-md active:scale-95 transition-transform"
+                  >
+                    {item.img1 ? (
+                      <img src={item.img1} alt={item.name} className="w-full h-full object-cover object-top" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-xl bg-slate-800">👤</div>
+                    )}
+                    <div className="absolute bottom-0 left-0 w-full bg-gradient-to-t from-black via-black/90 to-transparent p-1 text-center">
+                      <p className="text-[8px] text-[#f1c40f] font-bold leading-none m-0">{item.grade}</p>
+                      <p className="text-[10px] font-black truncate m-0 mt-0.5">{item.name}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* 🏠 ホームに戻るボタン（FooterNavの代わり） */}
+              <div className="mt-8 mb-6 flex justify-center">
+                <Link 
+                  href="/dashboard" 
+                  className="w-full max-w-[280px] py-3 bg-[#f1c40f] hover:bg-[#e6b800] text-black font-black text-center rounded-xl shadow-lg active:scale-95 transition-transform text-sm block"
+                >
+                  ホームに戻る
+                </Link>
+              </div>
+            </>
+          )}
         </div>
       ) : (
-        /* 
-          💡 詳細画面（selectedChar !== null）の時は、キャラクター立ち絵をしっかり見せるため、
-          ヘッダーを非表示にし、上部まで広々と使った元のレイアウトを保ちます。
-        */
         <div className="relative w-full h-full overflow-hidden bg-black/20">
           {displayChar?.img1 ? (
             <div 
@@ -290,7 +267,7 @@ export default function CharacterPage() {
           </button>
 
           {/* ステータスボード */}
-          <div className="absolute bottom-[110px] left-3 right-3 z-5 bg-gradient-to-t from-black/95 via-black/90 to-black/85 border border-white/10 rounded-xl p-4 shadow-xl max-h-[220px] overflow-y-auto text-xs">
+          <div className="absolute bottom-[40px] left-3 right-3 z-5 bg-gradient-to-t from-black/95 via-black/90 to-black/85 border border-white/10 rounded-xl p-4 shadow-xl max-h-[220px] overflow-y-auto text-xs">
             {detailLoading ? (
               <div className="text-center text-slate-400 py-8 flex flex-col items-center justify-center gap-2">
                 <span className="animate-spin text-lg">⏳</span>
@@ -311,7 +288,6 @@ export default function CharacterPage() {
                   <div><strong className="text-[#f1c40f]">誕生日:</strong> {displayChar.birthday}</div>
                   <div><strong className="text-[#f1c40f]">研究室:</strong> {displayChar.lab}</div>
                   <div><strong className="text-[#f1c40f]">出身:</strong> {displayChar.town}</div>
-                  <div><strong className="text-[#f1c40f]">研究班:</strong> {displayChar.group}</div>
                   <div className="col-span-2"><strong className="text-[#f1c40f]">趣味:</strong> {displayChar.hobby}</div>
                   <div className="col-span-2"><strong className="text-[#f1c40f]">役割:</strong> {displayChar.role}</div>
                 </div>
@@ -320,17 +296,15 @@ export default function CharacterPage() {
                 <button
                   onClick={() => handleSetHomeCharacter(displayChar.cid)}
                   disabled={settingHome}
-                  className="w-full mt-2 bg-[#f1c40f] hover:bg-[#d4ac0d] text-black font-black py-2 rounded-lg shadow-md active:scale-95 transition-transform disabled:opacity-50 text-center text-xs"
+                  className="w-full mt-3 py-2.5 bg-[#f1c40f] hover:bg-[#d4af37] text-black font-black rounded-lg transition-colors disabled:opacity-50 text-xs font-bold"
                 >
-                  {settingHome ? "🏠 設定中..." : "🏠 このキャラをホームに設定"}
+                  {settingHome ? "設定中..." : "🏠 ホーム画面に設定"}
                 </button>
               </>
             ) : null}
           </div>
         </div>
       )}
-
-      <FooterNav />
     </div>
   );
 }

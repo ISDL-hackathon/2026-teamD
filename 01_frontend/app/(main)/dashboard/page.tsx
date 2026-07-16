@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react'; 
+import { useState, useEffect, useRef } from 'react'; 
 import dynamic from 'next/dynamic'; 
 import { useRouter } from 'next/navigation';
 import FooterNav from "@/components/FooterNav";
@@ -13,7 +13,6 @@ interface CharacterProfile {
   img1: string;
 }
 
-// 📸 QR Scannerをコンポーネントの「外」で定義する (SSRなし)
 const Scanner = dynamic(
   () => import('@yudiel/react-qr-scanner').then((mod) => mod.Scanner),
   { ssr: false } 
@@ -29,9 +28,12 @@ export default function HomePapercraftPage() {
 
   const [homeChar, setHomeChar] = useState<CharacterProfile | null>(null);
   const [mounted, setMounted] = useState(false);
-
-  // 👑 ヘッダーの最新GB情報をリアルタイム更新させるためのStateキー
   const [headerKey, setHeaderKey] = useState(0);
+
+  // 💬 吹き出し用ステート
+  const [quote, setQuote] = useState<string | null>(null);
+  const [bubblePosition, setBubblePosition] = useState<any>({});
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchOwnedCharacter = async () => {
     const savedCharStr = localStorage.getItem('my_home_char');
@@ -44,7 +46,6 @@ export default function HomePapercraftPage() {
           name: savedChar.name,
           img1: savedChar.img1
         });
-        console.log(`[🏠 Home Select] 設定されたメンバーを表示: ${savedChar.name}`);
         return; 
       } catch (e) {
         console.error("ストレージのパース失敗", e);
@@ -61,7 +62,6 @@ export default function HomePapercraftPage() {
           img1: firstChar.characters.img1
         });
       } else {
-        // 所持ゼロなら阿部さん
         setHomeChar({
           cid: 5, name: "阿部勝寿", img1: "https://eoaxgmhcsaowfycmuovr.supabase.co/storage/v1/object/public/character/abe_1.png"
         });
@@ -75,18 +75,245 @@ export default function HomePapercraftPage() {
 
   useEffect(() => {
     setMounted(true);
-
     const startTimeStr = localStorage.getItem('stayStartTime');
     if (startTimeStr) setStep('staying');
-
     fetchOwnedCharacter();
   }, []);
 
-  // 📸 QRスキャン成功時の処理
+  // 🌟 滞在開始（stayingになった瞬間）を検知して「頑張ろう！」お題を喋らせる
+  useEffect(() => {
+    if (step === 'staying') {
+      triggerSpecialQuote('start');
+    }
+  }, [step]);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
+
+  // 🗣️ 1. 開始時（start）や終了時（end）の「特別なセリフ」をトリガーする関数
+  const triggerSpecialQuote = (type: 'start' | 'end') => {
+    if (!homeChar) return;
+
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+    }
+
+    // 🌟 キャラクター別の「開始時」と「終了時」のセリフデータベース
+    const specialQuotes: Record<string, { start: string[]; end: string[] }> = {
+      kuranuki: {
+        start: [
+          "よし、滞在開始だな！さあ、全力で進捗を生み出すんだ！🧑‍💻",
+          "キーボードを叩く準備はいいか？気合入れていくぞ！🔥"
+        ],
+        end: [
+          "お疲れ！よく頑張ったな。進捗が出たならイライラもしないぞ！✨",
+          "作業終了だな。今日の君の頑張りは、しっかり見ていたぞ！👏"
+        ]
+      },
+      abe: {
+        start: [
+          "滞在開始ですね！今日も素晴らしいクリエイティビティを発揮しましょう！🎨",
+          "さあ、新しいアイデアを形にする時間の始まりです！💡"
+        ],
+        end: [
+          "お疲れ様でした！今日の成果、とても素晴らしいものになりましたね！🌟",
+          "頑張りましたね！クリエイティブな作業の後はゆっくり休んでください。🛌"
+        ]
+      },
+      nagano: {
+        start: [
+          "よし、滞在開始！作業前にまずは気合のスクワットだ！いくぞ！💪",
+          "今日の作業（トレーニング）開始！限界突破していこう！🏋️"
+        ],
+        end: [
+          "滞在お疲れ！頑張った筋肉に、極上のプロテインを補給してくれ！🥛",
+          "ナイスバルク！今日も最高の集中力と素晴らしい追い込みだったぞ！🔥"
+        ]
+      },
+      futagami: {
+        start: [
+          "滞在を開始しましたね。今日も無理せず、自分のペースで進めましょう。👨‍🏫",
+          "さあ、落ち着いて作業に取り組みましょう。応援していますよ。🐾"
+        ],
+        end: [
+          "お疲れ様でした。集中してよく頑張ましたね。ゆっくり休んでください。😊",
+          "作業終了ですね。一歩一歩、確実に研究が進んでいますよ。素晴らしい。"
+        ]
+      },
+      hikita: {
+        start: [
+          "滞在開始ですね。凛とした姿勢で、今日も充実した時間にしましょう！🌸",
+          "さあ、一緒に頑張りましょう。あなたが集中できるよう応援しています。☕"
+        ],
+        end: [
+          "作業お疲れ様でした！一生懸命頑張る姿、とっても素敵でしたよ。😊",
+          "滞在終了ですね。頑張った分、温かいお茶でも飲んでリフレッシュしてください。🍵"
+        ]
+      },
+      kadoya: {
+        start: [
+          "滞在開始だな。ISDLのボスとして、君の今日の頑張りを見守っているぞ！👑",
+          "よし、作業開始だ。集中を切らさず、ISDLの底力を見せてくれ！🚀"
+        ],
+        end: [
+          "よくやった、お疲れ！君の頑張りがISDLを支えている。誇りに思っていいぞ！👍",
+          "滞在終了だな。実に見事な作業っぷりだった。ボスとして鼻が高いぞ。"
+        ]
+      },
+      jokei: {
+        start: [
+          "滞在開始ですね！僕も隣で一緒に頑張るので、何でも聞いてください！☀️",
+          "さあ、作業スタートです！今日も楽しく、元気に進めていきましょう！🏃‍♂️"
+        ],
+        end: [
+          "滞在お疲れ様でした！今日もたくさん進んで、本当にかっこよかったです！👏",
+          "お疲れ様でした！頑張った後は、美味しいものでも食べてくださいね！🍔"
+        ]
+      },
+      yoshida: {
+        start: [
+          "始まりましたね！気合を入れて、最高の進捗を出していきましょう！📢",
+          "さあ、作業開始です！あなたの素晴らしい集中力、期待していますよ！🌟"
+        ],
+        end: [
+          "お疲れ様でした！頑張ったあなたに、私から特大のハナマルをあげます！💮",
+          "滞在お疲れ様！今日も最後までやりきって、本当にすごいです！"
+        ]
+      },
+      default: {
+        start: [
+          "滞在を開始しました！今日も一歩ずつ、一緒に頑張っていきましょう！✊",
+          "さあ、作業時間の始まりです！最高の集中力で駆け抜けましょう！🔥"
+        ],
+        end: [
+          "滞在終了、お疲れ様でした！頑張った自分をたくさん褒めてあげてくださいね。🎉",
+          "お疲れ様でした！一区切りつきましたね。ゆっくり脳を休めてください。💆"
+        ]
+      }
+    };
+
+    let charKey = 'default';
+    const charName = homeChar.name;
+    if (charName.includes('倉貫')) charKey = 'kuranuki';
+    else if (charName.includes('阿部')) charKey = 'abe';
+    else if (charName.includes('永野')) charKey = 'nagano';
+    else if (charName.includes('二神')) charKey = 'futagami';
+    else if (charName.includes('疋田')) charKey = 'hikita';
+    else if (charName.includes('門屋')) charKey = 'kadoya';
+    else if (charName.includes('淨慶')) charKey = 'jokei';
+    else if (charName.includes('吉田')) charKey = 'yoshida';
+
+    const list = specialQuotes[charKey][type];
+    const randomQuote = list[Math.floor(Math.random() * list.length)];
+    setQuote(randomQuote);
+
+    // 吹き出しの位置を（顔の周りでUIの邪魔にならない安全な位置）ランダム決定
+    const positions = [
+      { top: '16%', left: '6%', right: 'auto' },  
+      { top: '16%', right: '6%', left: 'auto' }, 
+      { top: '32%', left: '5%', right: 'auto' },  
+      { top: '32%', right: '5%', left: 'auto' }  
+    ];
+    const randomPos = positions[Math.floor(Math.random() * positions.length)];
+    setBubblePosition(randomPos);
+
+    timerRef.current = setTimeout(() => {
+      setQuote(null);
+    }, 5000);
+  };
+
+  // 🗣️ 2. 通常の立ち絵タップ時の日常セリフ（既存の処理）
+  const handleCharacterTap = () => {
+    if (!homeChar) return;
+
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+    }
+
+    const quotesDatabase: Record<string, string[]> = {
+      kuranuki: [
+        "おいおい、進捗はどうなってるんだ？🧑‍💻",
+        "早くキーボードを叩くんだ！🔥",
+        "イライラさせないでくれよ〜！😜"
+      ],
+      abe: [
+        "素晴らしいクリエイティビティですね！🎨",
+        "この調子でどんどん作っていきましょう！✨",
+        "良いアイデアが降ってきました！💡"
+      ],
+      nagano: [
+        "よし、作業の合間にスクワット10回だ！🏋️",
+        "筋肉もコードも裏切らない！💪",
+        "プロテイン、飲みましたか？🥛"
+      ],
+      futagami: [
+        "質問があればいつでも聞いてくださいね。👨‍🏫",
+        "研究は進んでいますか？📊",
+        "一歩一歩、着実に進めましょう。🐾"
+      ],
+      hikita: [
+        "凛として、今日も一日頑張りましょう！🌸",
+        "作業、応援していますね。😊",
+        "一息つくのも大事ですよ。☕"
+      ],
+      kadoya: [
+        "ボスとしての威厳を見せる時が来たな。👑",
+        "ISDLの未来は君にかかっている！🚀",
+        "よし、いいぞ。その調子だ。👍"
+      ],
+      jokei: [
+        "こんにちは！今日も元気にいきましょう！☀️",
+        "僕も隣で作業してます！🏃‍♂️",
+        "進捗どうですか？👀"
+      ],
+      yoshida: [
+        "お疲れ様です！進捗出していきましょう！📢",
+        "ちょっと休憩しませんか？🍦",
+        "頑張るあなたを応援してます！🌟"
+      ],
+      default: [
+        "今日も一日、頑張っていきましょう！✊",
+        "お疲れ様！素晴らしい集中力ですね！👏",
+        "水分補給も忘れないでくださいね。🥤",
+        "ちょっと伸びをして、リフレッシュしましょう！🧘"
+      ]
+    };
+
+    let charKey = 'default';
+    const charName = homeChar.name;
+    if (charName.includes('倉貫')) charKey = 'kuranuki';
+    else if (charName.includes('阿部')) charKey = 'abe';
+    else if (charName.includes('永野')) charKey = 'nagano';
+    else if (charName.includes('二神')) charKey = 'futagami';
+    else if (charName.includes('疋田')) charKey = 'hikita';
+    else if (charName.includes('門屋')) charKey = 'kadoya';
+    else if (charName.includes('淨慶')) charKey = 'jokei';
+    else if (charName.includes('吉田')) charKey = 'yoshida';
+
+    const list = quotesDatabase[charKey];
+    const randomQuote = list[Math.floor(Math.random() * list.length)];
+    setQuote(randomQuote);
+
+    const positions = [
+      { top: '16%', left: '6%', right: 'auto' },  
+      { top: '16%', right: '6%', left: 'auto' }, 
+      { top: '32%', left: '5%', right: 'auto' },  
+      { top: '32%', right: '5%', left: 'auto' }  
+    ];
+    const randomPos = positions[Math.floor(Math.random() * positions.length)];
+    setBubblePosition(randomPos);
+
+    timerRef.current = setTimeout(() => {
+      setQuote(null);
+    }, 5000);
+  };
+
   const handleScanSuccess = async (text: string) => {
     try {
       const response = await api.post('/staying/start');
-      
       if (response.status === 200 || response.data) {
         localStorage.setItem('stayStartTime', String(Date.now()));
         setStep('starting_popup');
@@ -100,23 +327,17 @@ export default function HomePapercraftPage() {
     }
   };
 
-  // 🔴 滞在を終了する処理（フロント）
   const handleEndStay = async () => {
     try {
       const response = await api.post('/staying/end'); 
-      
       if (response.status === 200 && response.data) {
         const { time, gb } = response.data;
-        
         const nextGb = userGb + gb;
         setUserGb(nextGb);
         localStorage.setItem('userGb', String(nextGb));
-        
         setStayResult({ time: time, gb: gb, isAutomaticEnd: false });
         localStorage.removeItem('stayStartTime');
         setStep('ending');
-
-        // 👑 滞在成功時に共通ヘッダーをリフレッシュしてGB表示を更新！
         setHeaderKey(prev => prev + 1);
       }
     } catch (error) {
@@ -126,8 +347,6 @@ export default function HomePapercraftPage() {
       setUserGb(nextGb);
       localStorage.setItem('userGb', String(nextGb));
       setStep('ending');
-
-      // 👑 モックでの終了時も共通ヘッダーを更新
       setHeaderKey(prev => prev + 1);
     }
   };
@@ -150,14 +369,22 @@ export default function HomePapercraftPage() {
       overflow: 'hidden'
     }}>
       
-      {/* 👑 共通最上部ヘッダー（カメラ中以外表示、かつ更新キーを設定） */}
+      <style>{`
+        @keyframes scaleIn {
+          0% { transform: scale(0.6); opacity: 0; }
+          100% { transform: scale(1); opacity: 1; }
+        }
+        .character-container:active {
+          transform: scale(0.97) translateY(4px);
+        }
+      `}</style>
+
       {step !== 'scanning' && (
         <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', zIndex: 100 }}>
           <UserHeader key={headerKey} />
         </div>
       )}
 
-      {/* 👤 キャラクター名表示 */}
       {step === 'start' && (
         <div style={{
           position: 'absolute', top: '65px', left: 0, width: '100%',
@@ -170,15 +397,76 @@ export default function HomePapercraftPage() {
 
       {/* ② レイヤー中面：キャラクター立ち絵 */}
       {shouldShowCharacter && (
-        <div style={{
-          position: 'absolute', bottom: '11vh', left: 0, width: '100%', height: '82vh',
-          display: 'flex', justifyContent: 'center', alignItems: 'flex-end', zIndex: 5
-        }}>
+        <div 
+          onClick={handleCharacterTap} 
+          className="character-container" 
+          style={{
+            position: 'absolute', bottom: '11vh', left: 0, width: '100%', height: '82vh',
+            display: 'flex', justifyContent: 'center', alignItems: 'flex-end', zIndex: 5,
+            cursor: 'pointer',
+            transition: 'transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275)', 
+            userSelect: 'none',
+            WebkitTapHighlightColor: 'transparent'
+          }}
+        >
           <img 
             src={homeChar.img1} 
             alt={homeChar.name} 
             style={{ width: '100%', height: '100%', objectFit: 'contain' }}
           />
+        </div>
+      )}
+
+      {/* ③ レイヤー前面：吹き出しコンポーネント */}
+      {shouldShowCharacter && quote && (
+        <div 
+          onClick={() => setQuote(null)} 
+          style={{
+            position: 'absolute',
+            top: bubblePosition.top,
+            left: bubblePosition.left,
+            right: bubblePosition.right,
+            zIndex: 100,
+            backgroundColor: 'rgba(255, 255, 255, 0.96)',
+            color: '#1f2937',
+            padding: '12px 16px',
+            borderRadius: '16px',
+            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.18)',
+            border: '2px solid #eab308', 
+            fontSize: '13px',
+            fontWeight: 'bold',
+            maxWidth: '180px',
+            pointerEvents: 'auto',
+            cursor: 'pointer',
+            animation: 'scaleIn 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards', 
+            lineHeight: '1.4',
+            userSelect: 'none'
+          }}
+        >
+          {quote}
+
+          <div style={{
+            position: 'absolute',
+            bottom: '-8px',
+            left: bubblePosition.left !== 'auto' ? '24px' : 'auto',
+            right: bubblePosition.right !== 'auto' ? '24px' : 'auto',
+            width: '0',
+            height: '0',
+            borderLeft: '8px solid transparent',
+            borderRight: '8px solid transparent',
+            borderTop: '8px solid #eab308',
+          }} />
+          <div style={{
+            position: 'absolute',
+            bottom: '-6px',
+            left: bubblePosition.left !== 'auto' ? '25px' : 'auto',
+            right: bubblePosition.right !== 'auto' ? '25px' : 'auto',
+            width: '0',
+            height: '0',
+            borderLeft: '7px solid transparent',
+            borderRight: '7px solid transparent',
+            borderTop: '7px solid #fff',
+          }} />
         </div>
       )}
 
@@ -258,7 +546,10 @@ export default function HomePapercraftPage() {
       {/* 🔴 終了ポップアップ */}
       {step === 'ending' && (
         <div 
-          onClick={() => setStep('start')}
+          onClick={() => {
+            setStep('start');
+            triggerSpecialQuote('end'); // 🌟 ポップアップを閉じた瞬間、お疲れ様のセリフをトリガー！
+          }}
           style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 150 }}
         >
           <div style={{ backgroundColor: 'white', padding: '40px 20px', borderRadius: '25px', width: '80%', textAlign: 'center', fontSize: '15px', lineHeight: '1.6', color: '#333', border: '2px solid #333' }}>
