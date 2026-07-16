@@ -1,32 +1,29 @@
-from fastapi import Depends
+from fastapi import Depends, APIRouter, HTTPException
 from app.cruds.auth import get_current_user
-from fastapi import APIRouter
-from pydantic import BaseModel
-
 from datetime import datetime, timezone
-from app.cruds.staying import  change_staying_flag_db, save_start_time, end_staying_time
-from app.cruds.get_users_table import  get_start_time, get_staying_flag
+from app.cruds.staying import change_staying_flag_db, save_start_time, end_staying_time
+from app.cruds.get_users_table import get_start_time, get_staying_flag
 from app.cruds.gb import update_gb
-
 
 router = APIRouter(prefix="/staying", tags=["staying"])
 
-
-#滞在フラグの変更
+# --- 1. 滞在開始（入室） ---
 @router.post("/start")
 def change_staying_flag(current_user=Depends(get_current_user)):
     uid = current_user["uid"]
     print(f"フロントから呼び出されました！ UID: {uid}")
 
-    if get_staying_flag(uid) == False:
+    # get_staying_flag が None や False を返す可能性を考慮して「if not」で判定
+    if not get_staying_flag(uid):
         change_staying_flag_db(uid, True)
         save_start_time(uid, datetime.now(timezone.utc))
-
+        return {"status": "success", "message": "滞在を開始しました"}
     else:
-        print(f"滞在しています．uid:", uid)
-        return False
-    return True
+        print(f"すでに滞在しています。UID: {uid}")
+        # すでに滞在している場合は 400 Bad Request などを返しておくと親切です
+        raise HTTPException(status_code=400, detail="すでに滞在しています")
 
+# --- 2. 滞在終了（退室） ---
 @router.post("/end")
 def end_staying(current_user=Depends(get_current_user)):
     uid = current_user["uid"]
@@ -34,20 +31,35 @@ def end_staying(current_user=Depends(get_current_user)):
     start_time = get_start_time(uid)
 
     if start_time is None:
-        return {
-            "status":"error",
-            "message":"開始時間がありません"
-        }
+        raise HTTPException(status_code=400, detail="開始時間が記録されていません")
     
-    stay_time = int((end_time - start_time).total_seconds())
-    hours = stay_time // 3600
-    minutes = (stay_time % 3600) // 60
-    seconds = stay_time % 60
-    print(f"{hours}時間 {minutes}分 {seconds}秒")
+    # 💡 タイムゾーンの不一致エラー（TypeError）を防ぐ安全処理
+    if start_time.tzinfo is None:
+        start_time = start_time.replace(tzinfo=timezone.utc)
     
-    get_gb = int (stay_time / 60)    
-    update_gb(uid, get_gb)
+    # 時間計算
+    stay_time_seconds = int((end_time - start_time).total_seconds())
+    hours = stay_time_seconds // 3600
+    minutes = (stay_time_seconds % 3600) // 60
+    seconds = stay_time_seconds % 60
+    
+    time_str = f"{hours}時間 {minutes}分 {seconds}秒"
+    print(f"滞在時間: {time_str}")
+    
+    # GB計算（1分 = 1GB の場合。もし1分 = 2GB ならここを * 2 にしてください）
+    get_gb = int(stay_time_seconds / 60)    
+    
+    # 獲得GBが 1 以上の場合のみDBを更新する（無駄な更新を防ぐ）
+    if get_gb > 0:
+        update_gb(uid, get_gb)
 
+    # 滞在フラグをオフにする
     change_staying_flag_db(uid, False)
     end_staying_time(uid)
-    return {"{hours}時間 {minutes}分 {seconds}秒", get_gb}
+    
+    # ⭕️ 辞書型（JSON）で綺麗に結果を返却します
+    return {
+        "status": "success",
+        "time": time_str,
+        "gb": get_gb
+    }

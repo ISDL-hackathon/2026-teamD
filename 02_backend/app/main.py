@@ -10,6 +10,7 @@ from app.routers import (
     gatya,
     staying,
     conversation,
+    users,
     qr,
     gb,
     trade,
@@ -61,6 +62,7 @@ def root():
     }
 
 app.include_router(gatya.router)
+app.include_router(users.router)
 app.include_router(gb.router)
 app.include_router(staying.router)
 app.include_router(conversation.router)

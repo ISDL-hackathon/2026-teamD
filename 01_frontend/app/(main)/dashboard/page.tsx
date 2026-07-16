@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react'; 
-import dynamic from 'next/dynamic'; // 👈 追加
+import dynamic from 'next/dynamic'; 
 import { useRouter } from 'next/navigation';
-import { Scanner } from '@yudiel/react-qr-scanner';
 import FooterNav from "@/components/FooterNav";
-import { api } from "../../auth/api"; // 👈 ディレクトリ階層に合わせてインポート
+import { api } from "../../auth/api"; 
+import UserHeader from "../../../components/UserHeader";
 
 interface CharacterProfile {
   cid: number;
@@ -13,6 +13,11 @@ interface CharacterProfile {
   img1: string;
 }
 
+// 📸 QR Scannerをコンポーネントの「外」で定義する (SSRなし)
+const Scanner = dynamic(
+  () => import('@yudiel/react-qr-scanner').then((mod) => mod.Scanner),
+  { ssr: false } 
+);
 
 export default function HomePapercraftPage() {
   const router = useRouter();
@@ -22,19 +27,13 @@ export default function HomePapercraftPage() {
   const [username, setUsername] = useState('ISDL メンバー');
   const [userGb, setUserGb] = useState(1389); 
 
-  // 🏠 バックエンドからフェッチしてランダムに選ばれたキャラが入るState
   const [homeChar, setHomeChar] = useState<CharacterProfile | null>(null);
   const [mounted, setMounted] = useState(false);
 
-  // QR ScannerをSSRなしでダイナミックインポート
-const Scanner = dynamic(
-  () => import('@yudiel/react-qr-scanner').then((mod) => mod.Scanner),
-  { ssr: false } // 👈 サーバー側ではレンダリングしない
-);
-
+  // 👑 ヘッダーの最新GB情報をリアルタイム更新させるためのStateキー
+  const [headerKey, setHeaderKey] = useState(0);
 
   const fetchOwnedCharacter = async () => {
-    // 🏠 まずはローカルストレージに保存されたお気に入りキャラがあるか確認
     const savedCharStr = localStorage.getItem('my_home_char');
     
     if (savedCharStr) {
@@ -46,18 +45,15 @@ const Scanner = dynamic(
           img1: savedChar.img1
         });
         console.log(`[🏠 Home Select] 設定されたメンバーを表示: ${savedChar.name}`);
-        return; // 設定されていればここで終了！
+        return; 
       } catch (e) {
         console.error("ストレージのパース失敗", e);
       }
     }
 
-    // ─── 🔴 ここから下の「ランダム選出」のロジックは全消去してOKです！ ───
-    // 万が一、まだ誰もホーム設定していない場合の初期フォールバックとして以下だけ残します
     try {
-      const response = await api.post('/character/owned');
+      const response = await api.post('/character/owned'); 
       if (response.status === 200 && response.data && response.data.length > 0) {
-        // まだ設定がない時は、所持リストの最初の1人を初期表示
         const firstChar = response.data[0];
         setHomeChar({
           cid: firstChar.cid,
@@ -83,13 +79,6 @@ const Scanner = dynamic(
     const startTimeStr = localStorage.getItem('stayStartTime');
     if (startTimeStr) setStep('staying');
 
-    const storedUsername = localStorage.getItem('username');
-    if (storedUsername) setUsername(storedUsername);
-
-    const storedGb = localStorage.getItem('userGb');
-    if (storedGb) setUserGb(Number(storedGb));
-
-    // 🌟 起動時にログインユーザーの所持キャラを取得 (uid引数は完全に削除)
     fetchOwnedCharacter();
   }, []);
 
@@ -111,37 +100,25 @@ const Scanner = dynamic(
     }
   };
 
-  // 🔴 滞在を終了する処理
+  // 🔴 滞在を終了する処理（フロント）
   const handleEndStay = async () => {
     try {
-      await api.post('/staying/start'); // 💡 元コードのAPIパスを踏襲 (uid不要)
+      const response = await api.post('/staying/end'); 
       
-      const startTimeStr = localStorage.getItem('stayStartTime');
-      let displayTime = '5分';
-      let earnedGb = 10;
-      let isAutomaticEnd = false;
-
-      if (startTimeStr) {
-        const startTime = parseInt(startTimeStr, 10);
-        const diffMinutes = Math.floor((Date.now() - startTime) / (1000 * 60)); 
-        if (diffMinutes > 720) {
-          displayTime = '12時間超え';
-          earnedGb = 120;
-          isAutomaticEnd = true;
-        } else {
-          const hours = Math.floor(diffMinutes / 60);
-          const mins = diffMinutes % 60;
-          displayTime = hours > 0 ? `${hours}時間${mins}分` : `${mins}分`;
-          earnedGb = Math.max(1, diffMinutes) * 2; 
-        }
+      if (response.status === 200 && response.data) {
+        const { time, gb } = response.data;
+        
+        const nextGb = userGb + gb;
+        setUserGb(nextGb);
+        localStorage.setItem('userGb', String(nextGb));
+        
+        setStayResult({ time: time, gb: gb, isAutomaticEnd: false });
         localStorage.removeItem('stayStartTime');
-      }
+        setStep('ending');
 
-      const nextGb = userGb + earnedGb;
-      setUserGb(nextGb);
-      localStorage.setItem('userGb', String(nextGb));
-      setStayResult({ time: displayTime, gb: earnedGb, isAutomaticEnd });
-      setStep('ending');
+        // 👑 滞在成功時に共通ヘッダーをリフレッシュしてGB表示を更新！
+        setHeaderKey(prev => prev + 1);
+      }
     } catch (error) {
       console.warn("退室API終了エラー。デモ用にローカルでGB加算を行います:", error);
       setStayResult({ time: '5分', gb: 10, isAutomaticEnd: false });
@@ -149,6 +126,9 @@ const Scanner = dynamic(
       setUserGb(nextGb);
       localStorage.setItem('userGb', String(nextGb));
       setStep('ending');
+
+      // 👑 モックでの終了時も共通ヘッダーを更新
+      setHeaderKey(prev => prev + 1);
     }
   };
 
@@ -170,27 +150,10 @@ const Scanner = dynamic(
       overflow: 'hidden'
     }}>
       
-      {/* 👑 共通最上部ヘッダー */}
+      {/* 👑 共通最上部ヘッダー（カメラ中以外表示、かつ更新キーを設定） */}
       {step !== 'scanning' && (
-        <div style={{
-          position: 'absolute', top: '15px', left: '10px', right: '10px',
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          zIndex: 100
-        }}>
-          <div style={{
-            backgroundColor: 'rgba(255, 255, 255, 0.95)', color: '#333',
-            padding: '6px 16px', borderRadius: '4px', fontSize: '13px', fontWeight: 'bold',
-            border: '1.5px solid #333', boxShadow: '2px 2px 0px #000'
-          }}>
-            {username}
-          </div>
-          <div style={{
-            backgroundColor: 'rgba(255, 255, 255, 0.95)', color: '#333',
-            padding: '6px 14px', borderRadius: '4px', fontSize: '13px', fontWeight: 'bold',
-            border: '1.5px solid #333', boxShadow: '2px 2px 0px #000'
-          }}>
-            🔋 {userGb} GB
-          </div>
+        <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', zIndex: 100 }}>
+          <UserHeader key={headerKey} />
         </div>
       )}
 
@@ -316,18 +279,6 @@ const Scanner = dynamic(
         </div>
       )}
 
-      {/* 🗺️ 透明フッターナビ */}
-      <div style={{
-        position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)',
-        width: '100%', maxWidth: '400px', height: '11vh', display: 'flex', zIndex: 100, backgroundColor: 'transparent'
-      }}>
-        <div onClick={() => router.push('/character')} style={{ flex: 1, cursor: 'pointer' }} />
-        <div onClick={() => router.push('/gacha')} style={{ flex: 1, cursor: 'pointer' }} />
-        <div style={{ flex: 1 }} />
-        <div onClick={() => router.push('/exchange')} style={{ flex: 1, cursor: 'pointer' }} />
-        <div onClick={() => router.push('/settings')} style={{ flex: 1, cursor: 'pointer' }} />
-      </div>
-          
       <FooterNav />
     </div>
   );

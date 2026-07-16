@@ -2,19 +2,19 @@
 
 import { useState, useEffect } from 'react';
 import FooterNav from "@/components/FooterNav";
+import UserHeader from "../../../components/UserHeader"; // 👈 👑 共通ヘッダーをインポート！
 import { api } from "../../auth/api"; 
 
 interface DbCharacterDetails {
   img1: string | null;
   name: string;
   grade: string;
-  // 🌟【重要】エラーを消すために、オプショナルプロパティとして追加！
   lab?: string;
   town?: string;
   hobby?: string;
   role?: string;
   quote?: string;
-  birth?: string; // DBから返ってくる「birth」も念のため追加
+  birth?: string; 
 }
 
 interface DbOwnedCharacter {
@@ -56,8 +56,6 @@ export default function CharacterPage() {
 
   const [detailProfile, setDetailProfile] = useState<CharacterProfile | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
-
-  // 🌟【新規追加】ホーム設定の通信中を管理するステート
   const [settingHome, setSettingHome] = useState(false);
 
   // ① 一覧用データのフェッチ
@@ -71,12 +69,11 @@ export default function CharacterPage() {
           
           const fullDataList = (data || []).map((item) => {
             const inner = item.characters;
-            // 🌟 全ての文字列から改行コード(\r\n)を徹底的に除去する処理
             const clean = (str: any) => str ? String(str).replace(/[\r\n]+/g, "").trim() : "";
 
             const cName = clean(inner?.name);
             const cGrade = clean(inner?.grade);
-            const cImg = inner?.img1 ? clean(inner.img1) : null; // URL末尾の\r\nを完全抹殺
+            const cImg = inner?.img1 ? clean(inner.img1) : null;
             const cCid = item.cid || 0;
 
             const master = characterMasterData[cName] || {};
@@ -88,7 +85,7 @@ export default function CharacterPage() {
               img1: cImg,
               lab: clean(inner?.lab) || master.lab || "未設定",
               town: clean(inner?.town) || master.town || "未設定",
-             hobby: clean(inner?.hobby) || master.hobby || "未設定",
+              hobby: clean(inner?.hobby) || master.hobby || "未設定",
               role: clean(inner?.role) || master.role || "未設定",
               quote: clean(inner?.quote) || master.quote || "自己紹介は未設定です。",
               birthday: clean(inner?.birth) || master.birthday || "未設定",
@@ -138,11 +135,10 @@ export default function CharacterPage() {
           const dbData = res.data[0];
           const inner = dbData.characters;
 
-          // 🌟 ここでも改行コードを徹底的に除去
           const clean = (str: any) => str ? String(str).replace(/[\r\n]+/g, "").trim() : "";
           const cName = clean(inner?.name);
           const cGrade = clean(inner?.grade);
-          const cImg = inner?.img1 ? clean(inner.img1) : null; // URLを綺麗にする
+          const cImg = inner?.img1 ? clean(inner.img1) : null;
   
           const master = characterMasterData[cName] || {};
 
@@ -155,7 +151,7 @@ export default function CharacterPage() {
             town: clean(inner?.town) || master.town || "未設定",
             hobby: clean(inner?.hobby) || master.hobby || "未設定",
             role: clean(inner?.role) || master.role || "未設定",
-            quote: clean(inner?.quote) || master.quote || "自己紹介は未設定です。", // セリフ末尾の\r\nを消す
+            quote: clean(inner?.quote) || master.quote || "自己紹介は未設定です。",
             birthday: clean(inner?.birth) || master.birthday || "未設定",
             group: master.group || "未設定"
           });
@@ -171,23 +167,20 @@ export default function CharacterPage() {
     fetchCharacterDetail();
   }, [selectedIndex, characters]);
 
-  // 🌟【新規追加】③ ホームキャラクター設定APIを叩く関数
+  // ③ ホームキャラクター設定
   const handleSetHomeCharacter = async (cid: number) => {
     try {
       setSettingHome(true);
-      
-      // 他の通信と同様、エンドポイントが `/character/home-character` であると想定しています
       const res = await api.post('/character/home-character', { cid });
 
       if (res.data && res.data.status === "error") {
         alert(`❌ エラー: ${res.data.message}`);
       } else {
-        // 🌟【重要】設定に成功したキャラの情報をローカルストレージに保存する！
-      localStorage.setItem('my_home_char', JSON.stringify({
-        cid: res.data.cid,
-        name: res.data.name,
-        img1: res.data.img1
-      }));
+        localStorage.setItem('my_home_char', JSON.stringify({
+          cid: res.data.cid,
+          name: res.data.name,
+          img1: res.data.img1
+        }));
         alert(`🏠 ${res.data.name || "キャラクター"} をホーム画面に設定しました！`);
       }
     } catch (err) {
@@ -218,37 +211,53 @@ export default function CharacterPage() {
       className="relative w-full max-w-[400px] h-screen overflow-hidden bg-cover bg-center mx-auto text-white"
       style={{ backgroundImage: `url('/chara_table.png')`, backgroundColor: '#121212' }}
     >
+      {/* 👑 共通最上部ヘッダー（一覧表示のときだけ絶対配置で重ねる） */}
+      {selectedChar === null && (
+        <div className="absolute top-0 left-0 w-full z-20">
+          <UserHeader />
+        </div>
+      )}
+
       {selectedChar === null ? (
-        <div className="w-full h-full px-4 pt-4 pb-24 overflow-y-auto bg-black/40 backdrop-blur-sm">
+        /* 
+          💡 pt-[70px] に変更して、上部に固定配置された UserHeader と
+          「所持キャラクター一覧」の見出しテキストが被らないように余白を設定しています。
+        */
+        <div className="w-full h-full px-4 pt-[70px] pb-24 overflow-y-auto bg-black/40 backdrop-blur-sm">
           <h2 className="text-lg font-black text-[#f1c40f] mb-3 border-b border-white/20 pb-1.5">
             所持キャラクター一覧
           </h2>
 
-          {loading ? (
-            <p className="text-center text-sm text-slate-400 mt-10">読み込み中...</p>
-          ) : (
-            <div className="grid grid-cols-3 gap-2">
-              {characters.map((item, index) => (
-                <div 
-                  key={item.cid} 
-                  onClick={() => setSelectedIndex(index)}
-                  className="relative aspect-square rounded-lg overflow-hidden border border-white/10 bg-[#1a1a1a]/90 cursor-pointer shadow-md active:scale-95 transition-transform"
-                >
-                  {item.img1 ? (
-                    <img src={item.img1} alt={item.name} className="w-full h-full object-cover object-top" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-xl bg-slate-800">👤</div>
-                  )}
-                  <div className="absolute bottom-0 left-0 w-full bg-gradient-to-t from-black via-black/90 to-transparent p-1 text-center">
-                    <p className="text-[8px] text-[#f1c40f] font-bold leading-none m-0">{item.grade}</p>
-                    <p className="text-[10px] font-black truncate m-0 mt-0.5">{item.name}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+         {loading ? (
+  <p className="text-center text-sm text-slate-400 mt-10">読み込み中...</p>
+) : (
+  <div className="grid grid-cols-3 gap-2">
+    {characters.map((item, index) => (
+      <div 
+        // ⭕ ここを修正！「ID + 連番」にして絶対に重複しないようにします
+        key={`${item.cid}-${index}`} 
+        onClick={() => setSelectedIndex(index)}
+        className="relative aspect-square rounded-lg overflow-hidden border border-white/10 bg-[#1a1a1a]/90 cursor-pointer shadow-md active:scale-95 transition-transform"
+      >
+        {item.img1 ? (
+          <img src={item.img1} alt={item.name} className="w-full h-full object-cover object-top" />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-xl bg-slate-800">👤</div>
+        )}
+        <div className="absolute bottom-0 left-0 w-full bg-gradient-to-t from-black via-black/90 to-transparent p-1 text-center">
+          <p className="text-[8px] text-[#f1c40f] font-bold leading-none m-0">{item.grade}</p>
+          <p className="text-[10px] font-black truncate m-0 mt-0.5">{item.name}</p>
+        </div>
+      </div>
+    ))}
+  </div>
+)}
         </div>
       ) : (
+        /* 
+          💡 詳細画面（selectedChar !== null）の時は、キャラクター立ち絵をしっかり見せるため、
+          ヘッダーを非表示にし、上部まで広々と使った元のレイアウトを保ちます。
+        */
         <div className="relative w-full h-full overflow-hidden bg-black/20">
           {displayChar?.img1 ? (
             <div 
@@ -307,7 +316,7 @@ export default function CharacterPage() {
                   <div className="col-span-2"><strong className="text-[#f1c40f]">役割:</strong> {displayChar.role}</div>
                 </div>
 
-                {/* 🌟【新規追加】ホーム設定ボタン */}
+                {/* ホーム設定ボタン */}
                 <button
                   onClick={() => handleSetHomeCharacter(displayChar.cid)}
                   disabled={settingHome}

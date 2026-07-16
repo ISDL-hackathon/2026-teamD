@@ -4,13 +4,14 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Scanner } from '@yudiel/react-qr-scanner';
 import FooterNav from "@/components/FooterNav";
+import UserHeader from "@/components/UserHeader"; // 👈 👑 共通ヘッダーをインポート！
 import { api } from '../../auth/api';
 
 type Step = 
   | 'start'           // 1枚目（スタート画面）
   | 'qr_method'       // 2枚目 (渡す/読み取るの選択)
   | 'show_qr'         // 自分のQRを表示中（スキャン待ち）
-  | 'waiting_partner' // 🌟 追加：相手がスキャン成功し、キャラを選択している最中の待機画面
+  | 'waiting_partner' // 相手がスキャン成功し、キャラを選択している最中の待機画面
   | 'scan_qr'         // カメラ起動中
   | 'confirm_partner' // 相手の確認ポップアップ
   | 'select_target'   // 相手のリストから自分がもらうキャラを選択する画面
@@ -36,34 +37,27 @@ export default function ExchangePage() {
   // 🌟【最重要】渡す側（QR表示側）のための自動同期（ポーリング）処理
   // ==========================================
   useEffect(() => {
-    // QRコード表示中、または相手の選択待ち中のみポーリングを動かす
     if (step !== 'show_qr' && step !== 'waiting_partner') return;
 
     const interval = setInterval(async () => {
       try {
-        // バックエンドに現在のトレードステータスを問い合わせる
-        // ※認証トークンから誰のトレードかを判定する想定
         const res = await api.get('/trading/status'); 
         const { status, partner, acquired } = res.data; 
-        // レスポンス例: { status: "scanned" | "completed", partner: {name: "河村一樹", grade: "U4"}, acquired: {cid: 12, name: "河村...", rare: "UR", img1: "..."} }
 
         if (status === 'scanned' && step === 'show_qr') {
-          // 1. 相手がQRコードのスキャンに成功した時
           console.log("[POLLING] 相手のスキャンを検知しました。");
           setPartnerInfo(partner || { name: "読み取り相手", grade: "同期中" });
-          setStep('waiting_partner'); // 自動で待機画面へ遷移
+          setStep('waiting_partner'); 
         } else if (status === 'completed') {
-          // 2. 相手がキャラを選択し、最終実行（complete）を完了した時
           console.log("[POLLING] トレードの最終完了を検知しました。");
           setAcquiredChar(acquired);
           clearInterval(interval);
-          setStep('video'); // 自動で演出動画へ遷移！
+          setStep('video'); 
         }
       } catch (e) {
-        // 開発中やバックエンドが未実装のときはエラーログを出すのみ
         console.warn("[POLLING] ステータス取得エラー (未実装または通信エラー):", e);
       }
-    }, 1500); // 1.5秒に1回チェック
+    }, 1500); 
 
     return () => clearInterval(interval);
   }, [step]);
@@ -81,7 +75,6 @@ export default function ExchangePage() {
       setStep('show_qr');
     } catch (e) {
       console.warn("QR生成APIエラー。モックQRを作成します:", e);
-      // パターンBのJSONをモックQRに埋め込む
       setQrImageSrc('https://api.qrserver.com/v1/create-qr-code/?size=200x200&data={"uid":2,"trade_id":123}');
       setStep('show_qr');
     }
@@ -102,7 +95,6 @@ export default function ExchangePage() {
 
       setCurrentTradeId(tradeId);
 
-      // 422エラーを徹底的に回避するため、Query Parameter と JSON Body の両方に乗せて送信する
       const queryParams = new URLSearchParams();
       queryParams.append("trade_id", String(tradeId));
       if (partnerUid !== null) {
@@ -127,7 +119,7 @@ export default function ExchangePage() {
     }
   };
 
-  // 💡 4. 相手との接続を「はい」で確認した時 ➔ 交換許可を出して、相手の手札リストを取得
+  // 💡 4. 相手との接続を確認した時
   const handlePartnerConfirmYes = async () => {
     try {
       const tradeId = currentTradeId || 999;
@@ -208,6 +200,13 @@ export default function ExchangePage() {
         backgroundSize: 'cover', backgroundPosition: 'center', zIndex: 1
       }} />
 
+      {/* 👑 共通最上部ヘッダー（最初のスタート画面 & 方法選択画面のときだけ表示） */}
+      {(step === 'start' || step === 'qr_method') && (
+        <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', zIndex: 100 }}>
+          <UserHeader />
+        </div>
+      )}
+
       {/* 🔴 ステップ1: スタート画面 */}
       {step === 'start' && (
         <div 
@@ -219,6 +218,10 @@ export default function ExchangePage() {
       {/* 🔴 ステップ2: QR方式の選択（渡す/読み取る） */}
       {step === 'qr_method' && (
         <>
+          {/* 💡 左上の「戻る/エラー」ボタン。
+            共通ヘッダー（UserHeader）の高さと重なって誤タップを避けるため、
+            もしデザイン上押しにくければ、ここの `top: '7%'` などを `top: '10%'` 付近に調整してください。
+          */}
           <div onClick={triggerError} style={{ position: 'absolute', top: '7%', left: '5%', width: '30%', height: '8%', cursor: 'pointer', zIndex: 10 }} />
           <div onClick={handleShowQr} style={{ position: 'absolute', top: '25%', left: '20%', width: '60%', height: '15%', cursor: 'pointer', zIndex: 10 }} />
           <div onClick={() => setStep('scan_qr')} style={{ position: 'absolute', top: '50%', left: '20%', width: '60%', height: '15%', cursor: 'pointer', zIndex: 10 }} />
@@ -234,7 +237,6 @@ export default function ExchangePage() {
               {qrImageSrc ? <img src={qrImageSrc} alt="QR Code" style={{ width: '180px', height: '180px' }} /> : <p style={{color: '#333'}}>生成中...</p>}
             </div>
             
-            {/* 🌟【デモ保険】相手がスキャンした状態を1タップでエミュレートできるデモ用ボタン */}
             <button 
               onClick={() => {
                 setPartnerInfo({ name: "河村一樹", grade: "U4" });
@@ -255,7 +257,6 @@ export default function ExchangePage() {
         <div style={overlayStyle}>
           <div style={popupStyle}>
             <div style={{ margin: '10px 0' }}>
-              {/* スピナーアニメーション */}
               <div style={{ width: '40px', height: '40px', border: '4px solid #f3f3f3', borderTop: '4px solid #1a73e8', borderRadius: '50%', margin: '0 auto 15px', animation: 'spin 1s linear infinite' }} />
               <h3 style={{ fontSize: '18px', color: '#333', fontWeight: 'bold', margin: '0 0 10px 0' }}>相手がキャラを選択中...</h3>
               <p style={{ fontSize: '13px', color: '#666', marginBottom: '5px' }}>
@@ -264,7 +265,6 @@ export default function ExchangePage() {
               <p style={{ fontSize: '11px', color: '#999' }}>そのまましばらくお待ちください</p>
             </div>
 
-            {/* 🌟【デモ保険】相手が選択完了した状態を1タップでエミュレートして動画へ進めるボタン */}
             <button 
               onClick={() => {
                 setAcquiredChar({ cid: 2, name: "疋田智佳子", rare: "UR", img1: "https://eoaxgmhcsaowfycmuovr.supabase.co/storage/v1/object/public/character/hikita_1.png" });
@@ -424,4 +424,4 @@ const uniformCancelBtnStyle: React.CSSProperties = {
 };
 const wideCancelBtnStyle: React.CSSProperties = {
   width: '80%', maxWidth: '300px', padding: '14px 0', fontSize: '16px', fontWeight: 'bold', backgroundColor: '#e74c3c', color: 'white', border: 'none', borderRadius: '30px', cursor: 'pointer', marginTop: '30px', textAlign: 'center', boxShadow: '0 4px 10px rgba(231, 76, 60, 0.3)'
-};
+}

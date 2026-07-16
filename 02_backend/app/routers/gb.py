@@ -7,7 +7,7 @@ from app.cruds.gb import  update_gb
 
 router = APIRouter(prefix="/gb", tags=["gb"])
 
-@router.post("/gb")
+@router.post("/tutorial")
 def tutorial_gb_endpoint(current_user=Depends(get_current_user)):
     uid = current_user["uid"]
     print(f"チュートリアルGB配布発生 UID: {uid}")
