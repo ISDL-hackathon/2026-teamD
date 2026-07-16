@@ -13,7 +13,7 @@ from app.routers import (
     qr,
     users,
     gb,
-    trade,
+    trade
 )
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -69,7 +69,6 @@ app.include_router(conversation.router)
 app.include_router(qr.router)
 app.include_router(character.router)
 app.include_router(trade.router)
-
 
 if __name__ == "__main__":
     uvicorn.run("app.main:app", host="127.0.0.1", port=8000, reload=True)
