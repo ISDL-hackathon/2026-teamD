@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { api } from '../../../auth/api'; // 👈 ディレクトリ階層に合わせてインポート
 
 export default function MissionInputPage() {
   const router = useRouter();
@@ -12,7 +13,7 @@ export default function MissionInputPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
-  const loginUid = 1; // 自分のユーザーID（仮）
+  // 🌟 uid管理は完全に不要になりました
   const earnedGb = 50; // 会話ミッション達成の報酬GB（ハッカソン用の仮数値）
 
   // 📝 答えを送信する処理
@@ -27,25 +28,19 @@ export default function MissionInputPage() {
     setErrorMessage('');
 
     try {
-      // 💡 バックエンドの会話完了API（例: /mission/complete など）を叩く
-      // バックエンドの実際のパスに合わせて適宜変更してください
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/mission/complete`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          uid: loginUid,
-          answer: answer
-        }),
+      // 💡 バックエンドの会話完了APIを叩く (uidはヘッダーのトークンから自動識別されるため answer のみ送信)
+      const response = await api.post('/mission/complete', {
+        answer: answer
       });
 
-      // ハッカソンのデモをスムーズにするため、通信が失敗しても
-      // フロント側だけで完了画面に進めるように「|| true」を入れておくのが安全です
-      if (response.ok || true) {
+      // ハッカソンのデモをスムーズにするため、通信が失敗しても進めるフォールバックを維持
+      if (response.status === 200 || response.data || true) {
         setStep('completed'); // 完了ポップアップを表示
       } else {
         setErrorMessage('送信に失敗しました。もう一度お試しください。');
       }
     } catch (error) {
+      console.warn("API呼び出し失敗。デモ用に完了画面へ進みます:", error);
       // 通信エラーでもデモ用に完了画面へ進める（ハッカソン用ライフハック）
       setStep('completed');
     } finally {

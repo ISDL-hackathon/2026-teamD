@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import MoreModal from "@/components/MoreModal";
+import { api } from "../../auth/api"; // 👈 ディレクトリ階層に合わせて調整してください（例: "@/auth/api"）
 
 type GachaStep = "BASE" | "CONFIRM" | "VIDEO" | "RESULT_IMAGE" | "FINAL_SUMMARY";
 
@@ -13,13 +14,6 @@ export default function GachaPage() {
   const [resultImageIndex, setResultImageIndex] = useState<number>(2);
   const [isMoreOpen, setIsMoreOpen] = useState(false);
   const [loading, setLoading] = useState(false); // 通信中のガード用
-
-  const getLoginUid = () => {
-    if (typeof window !== "undefined") {
-      return Number(localStorage.getItem("loginUid") || "1");
-    }
-    return 1;
-  };
 
   // ガチャボタン（1回 / 8回）を押したとき
   const handleGachaStart = (type: 1 | 8) => {
@@ -33,22 +27,13 @@ export default function GachaPage() {
     if (loading) return;
     setLoading(true);
 
-    const uid = getLoginUid();
-
     try {
-      // 🚀 バックエンドのガチャAPIをフェッチ！（APIエンドポイントが異なる場合はURLを適宜修正してください）
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/gacha/draw`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          uid: uid,
-          cnt: gachaType, // 1回または8回のカウントを渡す
-        }),
+      // 🚀 バックエンドのガチャAPIをコール！（uidはトークンから自動識別されるため不要に）
+      const response = await api.post("/gacha/draw", {
+        cnt: gachaType, // 1回または8回のカウントのみを渡す
       });
 
-      if (response.ok) {
+      if (response.status === 200 || response.data) {
         console.log("🎉 ガチャキャラが正常にDBに保存または更新されました！");
         // 通信が成功したらガチャ動画演出に進む
         setStep("VIDEO");
@@ -57,9 +42,9 @@ export default function GachaPage() {
         alert("ガチャの処理中にエラーが発生しました。");
         setStep("BASE");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("ネットワークエラーによりガチャAPIを実行できませんでした:", error);
-      alert("通信エラーが発生しました。");
+      alert(error.response?.data?.message || "通信エラーが発生しました。");
       setStep("BASE");
     } finally {
       setLoading(false);
@@ -163,11 +148,11 @@ export default function GachaPage() {
               <button 
                 onClick={handleConfirmYes} 
                 disabled={loading}
-                className="h-12 w-28 bg-transparent active:bg-black/10 rounded-lg transition-colors flex items-center justify-center text-white"
+                className="h-12 w-28 bg-transparent active:bg-black/10 rounded-lg transition-colors flex items-center justify-center text-white font-bold"
                 style={{ cursor: "pointer" }}
                 aria-label="はい"
               >
-                {loading && "通信中..."}
+                {loading ? "通信中..." : ""}
               </button>
               {/* 「いいえ」用ボタン */}
               <button 

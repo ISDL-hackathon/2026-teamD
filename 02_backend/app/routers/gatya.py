@@ -1,3 +1,5 @@
+from fastapi import Depends
+from app.cruds.auth import get_current_user
 from fastapi import APIRouter
 from pydantic import BaseModel
 
@@ -8,17 +10,14 @@ from app.cruds.gb import update_gb
 
 router = APIRouter(prefix="/gacha", tags=["gacha"])
 
-class TutorialRequest(BaseModel):
-    uid: int
 
 class DrawRequest(BaseModel):
-    uid: int
     cnt: int
 
 #チュートリアルガチャエンドポイント
 @router.post("/tutorial")
-def tutorial_gacha_endpoint(request_data: TutorialRequest):
-    uid = request_data.uid
+def tutorial_gacha_endpoint(current_user=Depends(get_current_user)):
+    uid = current_user["uid"]
     print(f"チュートリアルガチャ発生 UID: {uid}")
     
     result = get_kuranuki_to_user(uid)
@@ -30,8 +29,8 @@ def tutorial_gacha_endpoint(request_data: TutorialRequest):
 
 #ガチャを引くAPIの窓口
 @router.post("/draw")
-def draw_gacha_endpoint(request_data: DrawRequest):
-    uid = request_data.uid
+def draw_gacha_endpoint(request_data: DrawRequest, current_user=Depends(get_current_user)):
+    uid = current_user["uid"]
     cnt = request_data.cnt
 
     print(f"フロントから呼び出されました！ UID: {uid}, cnt: {cnt}")
@@ -66,9 +65,9 @@ def get_character_from_user(uid, cnt):
     
     try:        
         #デモ
-        chosen_cid=demo_get_character(cnt)
+        #chosen_cid=demo_get_character(cnt)
         #本番
-        #chosen_cid=get_character_rate(cnt)
+        chosen_cid=get_character_rate(cnt)
         if not chosen_cid:
             return False
 

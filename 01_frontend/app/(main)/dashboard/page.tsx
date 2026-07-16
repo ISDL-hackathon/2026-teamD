@@ -1,15 +1,18 @@
 'use client';
 
 import { useState, useEffect } from 'react'; 
+import dynamic from 'next/dynamic'; // 👈 追加
 import { useRouter } from 'next/navigation';
 import { Scanner } from '@yudiel/react-qr-scanner';
 import FooterNav from "@/components/FooterNav";
+import { api } from "../../auth/api"; // 👈 ディレクトリ階層に合わせてインポート
 
 interface CharacterProfile {
   cid: number;
   name: string;
   img1: string;
 }
+
 
 export default function HomePapercraftPage() {
   const router = useRouter();
@@ -23,51 +26,53 @@ export default function HomePapercraftPage() {
   const [homeChar, setHomeChar] = useState<CharacterProfile | null>(null);
   const [mounted, setMounted] = useState(false);
 
-  const getLoginUid = () => {
-    if (typeof window !== 'undefined') {
-      return Number(localStorage.getItem('loginUid') || '1');
+  // QR ScannerをSSRなしでダイナミックインポート
+const Scanner = dynamic(
+  () => import('@yudiel/react-qr-scanner').then((mod) => mod.Scanner),
+  { ssr: false } // 👈 サーバー側ではレンダリングしない
+);
+
+
+  const fetchOwnedCharacter = async () => {
+    // 🏠 まずはローカルストレージに保存されたお気に入りキャラがあるか確認
+    const savedCharStr = localStorage.getItem('my_home_char');
+    
+    if (savedCharStr) {
+      try {
+        const savedChar = JSON.parse(savedCharStr);
+        setHomeChar({
+          cid: savedChar.cid,
+          name: savedChar.name,
+          img1: savedChar.img1
+        });
+        console.log(`[🏠 Home Select] 設定されたメンバーを表示: ${savedChar.name}`);
+        return; // 設定されていればここで終了！
+      } catch (e) {
+        console.error("ストレージのパース失敗", e);
+      }
     }
-    return 1;
-  };
 
-  // 🔄 所持キャラを取得し、そこからランダムで1人をホームに選出
-  const fetchOwnedCharacter = async (uid: number) => {
+    // ─── 🔴 ここから下の「ランダム選出」のロジックは全消去してOKです！ ───
+    // 万が一、まだ誰もホーム設定していない場合の初期フォールバックとして以下だけ残します
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/character/owned`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ uid: uid }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        
-        if (data && data.length > 0) {
-          // 🎲 所持リストからランダムに1人を選択
-          const randomIndex = Math.floor(Math.random() * data.length);
-          const chosenCharacter = data[randomIndex];
-
-          setHomeChar({
-            cid: chosenCharacter.cid,
-            name: chosenCharacter.characters.name,
-            img1: chosenCharacter.characters.img1
-          });
-          console.log(`[🎲 Random Select] 今回選ばれた滞在メンバー: ${chosenCharacter.characters.name}`);
-        } else {
-          // 所持キャラクターが0人の場合のフォールバック（デフォルト: 阿部さん）
-          setHomeChar({
-            cid: 5,
-            name: "阿部勝寿",
-            img1: "https://eoaxgmhcsaowfycmuovr.supabase.co/storage/v1/object/public/character/abe_1.png"
-          });
-        }
+      const response = await api.post('/character/owned');
+      if (response.status === 200 && response.data && response.data.length > 0) {
+        // まだ設定がない時は、所持リストの最初の1人を初期表示
+        const firstChar = response.data[0];
+        setHomeChar({
+          cid: firstChar.cid,
+          name: firstChar.characters.name,
+          img1: firstChar.characters.img1
+        });
+      } else {
+        // 所持ゼロなら阿部さん
+        setHomeChar({
+          cid: 5, name: "阿部勝寿", img1: "https://eoaxgmhcsaowfycmuovr.supabase.co/storage/v1/object/public/character/abe_1.png"
+        });
       }
     } catch (error) {
-      console.error("所持キャラクターのフェッチに失敗しました:", error);
       setHomeChar({
-        cid: 5,
-        name: "阿部勝寿",
-        img1: "https://eoaxgmhcsaowfycmuovr.supabase.co/storage/v1/object/public/character/abe_1.png"
+        cid: 5, name: "阿部勝寿", img1: "https://eoaxgmhcsaowfycmuovr.supabase.co/storage/v1/object/public/character/abe_1.png"
       });
     }
   };
@@ -84,38 +89,33 @@ export default function HomePapercraftPage() {
     const storedGb = localStorage.getItem('userGb');
     if (storedGb) setUserGb(Number(storedGb));
 
-    const uid = getLoginUid();
-    fetchOwnedCharacter(uid);
+    // 🌟 起動時にログインユーザーの所持キャラを取得 (uid引数は完全に削除)
+    fetchOwnedCharacter();
   }, []);
 
+  // 📸 QRスキャン成功時の処理
   const handleScanSuccess = async (text: string) => {
-    const uid = getLoginUid();
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/staying/start`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ uid: uid }),
-      });
-      if (response.ok) {
+      const response = await api.post('/staying/start');
+      
+      if (response.status === 200 || response.data) {
         localStorage.setItem('stayStartTime', String(Date.now()));
         setStep('starting_popup');
       } else {
         setStep('error');
       }
     } catch (error) {
+      console.warn("入室開始API通信エラー。デモ用にモック処理を起動します:", error);
       localStorage.setItem('stayStartTime', String(Date.now()));
       setStep('starting_popup');
     }
   };
 
+  // 🔴 滞在を終了する処理
   const handleEndStay = async () => {
-    const uid = getLoginUid();
     try {
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/staying/start`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ uid: uid }),
-      });
+      await api.post('/staying/start'); // 💡 元コードのAPIパスを踏襲 (uid不要)
+      
       const startTimeStr = localStorage.getItem('stayStartTime');
       let displayTime = '5分';
       let earnedGb = 10;
@@ -143,6 +143,7 @@ export default function HomePapercraftPage() {
       setStayResult({ time: displayTime, gb: earnedGb, isAutomaticEnd });
       setStep('ending');
     } catch (error) {
+      console.warn("退室API終了エラー。デモ用にローカルでGB加算を行います:", error);
       setStayResult({ time: '5分', gb: 10, isAutomaticEnd: false });
       const nextGb = userGb + 10;
       setUserGb(nextGb);

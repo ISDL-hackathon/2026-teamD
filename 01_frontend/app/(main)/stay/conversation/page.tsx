@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 // 📸 QRスキャナーと生成器をインポート
 import { Scanner } from '@yudiel/react-qr-scanner';
 import { QRCodeSVG } from 'qrcode.react';
+import { api } from '../../../auth/api'; // 👈 パスを合わせてインポート
 
 export default function ConversationPage() {
   const router = useRouter();
@@ -12,51 +13,80 @@ export default function ConversationPage() {
   // モード管理: 'select' (選択) | 'show_qr' (自分のQR表示) | 'scan_qr' (相手のQRスキャン)
   const [mode, setMode] = useState<'select' | 'show_qr' | 'scan_qr'>('select');
   const [errorMessage, setErrorMessage] = useState('');
+  
+  // 💬 Geminiから動的に取得する質問を管理するステート
+  const [missionQuestion, setMissionQuestion] = useState<string>('ミッションを生成中...');
 
-  const loginUid = 1;     // 自分のユーザーID（仮）
   const myGrade = 'B1';   // 自分の学年（仮）
   const missionId = 42;   // 現在のミッションID（仮）
 
-  // 💡 【重要】自分のQRコードには、バックエンドが定義した QrScanRequest 仕様のJSON文字列をそのまま埋め込みます！
+  // 💡 自分のQRコードには、最新仕様（grade, mission_idのみ）のJSONを埋め込みます
   const myQrData = JSON.stringify({
-    uid: loginUid,
     grade: myGrade,
     mission_id: missionId
   });
 
-  
+  // 🌟 画面表示時にバックエンドからGeminiのお題（質問）を取得する処理
+  useEffect(() => {
+    const fetchMission = async () => {
+      try {
+        const response = await api.post('/staying/conversation');
+        console.log("🤖 Geminiミッション取得結果:", response.data);
+        
+        // バックエンドが直接文字列を返す場合と、{"message": "..."} の辞書オブジェクトを返す場合の両方をケア
+        if (typeof response.data === 'string') {
+          setMissionQuestion(response.data);
+        } else if (response.data && response.data.message) {
+          setMissionQuestion(response.data.message);
+        } else {
+          setMissionQuestion('ミッションを取得できませんでした。');
+        }
+      } catch (error) {
+        console.error("❌ Geminiミッション取得失敗:", error);
+        setMissionQuestion('ミッションの取得に失敗しました。');
+      }
+    };
+
+    fetchMission();
+  }, []);
+
   // 📸 相手のQRコードを読み取った時の処理
   const handleScanSuccess = async (text: string) => {
     try {
-      const qrData = JSON.parse(text);
+      let qrData: any;
+      
+      try {
+        // QRから読み取った文字列をパース
+        qrData = JSON.parse(text);
+      } catch (parseError) {
+        console.error("❌ QRデータのパースに失敗しました。生テキスト:", text);
+        setErrorMessage('読み取ったQRコードのデータ形式が正しくありません。');
+        setMode('select');
+        return; 
+      }
 
-      // 💡 確実に型を int, str, int に変換したオブジェクトを作る
+      // 💡 確実に型を合わせ、不要なuidは含めないペイロードを作成
       const payload = {
-        uid: Number(qrData.uid),               
         grade: String(qrData.grade),           
         mission_id: Number(qrData.mission_id)  
       };
 
-      console.log("🚀 [DEBUG] サーバーに送るデータ（フラット）:", payload);
+      console.log("🚀 [DEBUG] サーバーに送るデータ（トークンはヘッダーに自動付与）:", payload);
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/qr/scanQR`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        // ❌ body: JSON.stringify({ data: payload }),  <-- 包むのをやめる
-        body: JSON.stringify(payload), // ⭕️ フラットにそのまま送る！
-      });
+      // 🌟 `api` (Axios) を使用してPOST通信
+      const response = await api.post('/qr/scanQR', payload);
 
-      if (response.ok) {
+      if (response.status === 200 || response.data) {
         router.push('/stay/input'); // 成功したら答え入力へ！
       } else {
-        const errorDetail = await response.json().catch(() => ({}));
-        console.error("❌ [SERVER ERROR] エラーの全貌:\n", JSON.stringify(errorDetail, null, 2));
         setErrorMessage('不正なQRコードか、ミッションの対象外の相手です。');
         setMode('select');
       }
-    } catch (error) {
-      console.error("❌ [FRONT ERROR] 例外発生:", error);
-      setErrorMessage('通信エラーまたは不正なデータ形式です。');
+    } catch (error: any) {
+      console.error("❌ [ERROR] スキャン処理失敗:", error);
+      setErrorMessage(
+        error.response?.data?.message || '通信エラーまたは不正なデータ形式です。'
+      );
       setMode('select');
     }
   };
@@ -79,7 +109,7 @@ export default function ConversationPage() {
         <div style={{ backgroundColor: '#e8f0fe', padding: '16px', borderRadius: '12px', width: '100%', marginBottom: '24px', textAlign: 'center', border: '1px solid #1a73e8' }}>
           <span style={{ fontSize: '12px', color: '#1a73e8', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>💬 Geminiからのミッション</span>
           <p style={{ fontSize: '16px', fontWeight: 'bold', margin: 0, color: '#1f3b4d' }}>
-            相手の「最近ハマっていること」を聞き出そう！
+            {missionQuestion}
           </p>
         </div>
 
@@ -120,7 +150,7 @@ export default function ConversationPage() {
           <div style={{ textAlign: 'center', marginTop: '20px' }}>
             <p style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '20px' }}>相手にこのQRコードを読み取ってもらってください</p>
             <div style={{ backgroundColor: 'white', padding: '16px', borderRadius: '12px', display: 'inline-block', boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}>
-              {/* QRコードを生成表示（JSONをそのまま文字列化したものを埋め込みます） */}
+              {/* QRコードを生成表示 */}
               <QRCodeSVG value={myQrData} size={200} />
             </div>
             <div className="mt-4">
@@ -148,14 +178,6 @@ export default function ConversationPage() {
                 onError={(error: any) => console.log(error?.message)}
               />
             </div>
-            
-            {/* 💡 デモ用の強制突破ボタンもJSON形式に変更 */}
-            <button
-              onClick={() => handleScanSuccess('{"uid":2,"grade":"B2","mission_id":42}')}
-              style={{ padding: '8px 16px', fontSize: '12px', backgroundColor: '#f1f3f4', color: '#1a73e8', border: '1px solid #1a73e8', borderRadius: '6px', cursor: 'pointer', marginTop: '15px' }}
-            >
-              【デモ用】スキャン成功にする
-            </button>
 
             <button
               onClick={() => setMode('select')}

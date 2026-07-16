@@ -1,14 +1,15 @@
+// app/tutorial/page.tsx
 "use client";
 
 import { useState } from 'react';
 import TitleScreen, { RegisterScreen, LoginScreen } from "./_components/screens";
+import { api } from '../auth/api';
 
 export default function GameFlow() {
   const [step, setStep] = useState<'TITLE' | 'REGISTER' | 'LOGIN' | 'SLIDESHOW' | 'GACHA_RESULT'>('TITLE');
   const [slideIndex, setSlideIndex] = useState(0);
   const [mediaError, setMediaError] = useState<string | null>(null);
   
-  const [userId, setUserId] = useState<number>(1);
   const [gachaCharacter, setGachaCharacter] = useState<any>(null);
   const [isGachaLoading, setIsGachaLoading] = useState(false);
 
@@ -51,35 +52,28 @@ export default function GameFlow() {
     }
   };
 
+  // 🌟 ガチャ呼び出し時に Body は送信しないように変更！
   const handleVideoEnded = async () => {
     setMediaError(null);
     setIsGachaLoading(true);
 
     try {
-      console.log(`📡 チュートリアルガチャAPI呼び出し... UID: ${userId}`);
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/gacha/tutorial`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ uid: userId })
-      });
+      console.log("📡 チュートリアルガチャAPI呼び出し... (Bodyなし)");
+      const res = await api.post('/gacha/tutorial');
 
-      if (res.ok) {
-        const data = await res.json();
-        console.log("🎁 ガチャAPIレスポンス成功:", data);
-        
-        if (data.status !== "error") {
-          setGachaCharacter(data);
-          setStep('GACHA_RESULT');
-        } else {
-          alert("ガチャ失敗: " + data.message);
-          moveToNextSlide();
-        }
+      const data = res.data;
+      console.log("🎁 ガチャAPIレスポンス成功:", data);
+      
+      if (data.status !== "error") {
+        setGachaCharacter(data);
+        setStep('GACHA_RESULT');
       } else {
-        alert("ガチャAPIとの通信に失敗しました。");
+        alert("ガチャ失敗: " + data.message);
         moveToNextSlide();
       }
     } catch (error) {
       console.error("ガチャ通信エラー:", error);
+      alert("ガチャAPIとの通信に失敗しました。");
       moveToNextSlide();
     } finally {
       setIsGachaLoading(false);
@@ -95,7 +89,6 @@ export default function GameFlow() {
   return (
     <div style={{ background: '#222', width: '100vw', height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
       
-      {/* 🌟 アニメーション定義（タップ波紋 ＋ ガチャ結果画面のエフェクト） */}
       <style>
         {`
           @keyframes gameTapRipple {
@@ -142,8 +135,8 @@ export default function GameFlow() {
         )}
         
         {step === 'REGISTER' && (
-          <RegisterScreen onRegisterSuccess={(uid, name, grade) => {
-            setUserId(uid);
+          <RegisterScreen onRegisterSuccess={(name, grade) => {
+            // ユーザー特定をトークンで行うため、userIdの保持は不要に
             setStep('SLIDESHOW');
             setSlideIndex(0);
           }} />
@@ -170,7 +163,6 @@ export default function GameFlow() {
               overflow: 'hidden'
             }}
           >
-            {/* 🌟 タップエフェクトの描画 */}
             {tapEffects.map(effect => (
               <div 
                 key={effect.id}
@@ -218,7 +210,7 @@ export default function GameFlow() {
           </div>
         )}
 
-        {/* 🌟 ガチャ結果画面：動画からのシームレス演出版 */}
+        {/* ガチャ結果画面 */}
         {step === 'GACHA_RESULT' && (
           <div className="w-full h-full flex flex-col items-center justify-center p-6 text-white text-center select-none relative overflow-hidden"
                style={{ 

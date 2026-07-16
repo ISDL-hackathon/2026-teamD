@@ -110,9 +110,7 @@ def demo_get_character(cnt):
         .execute()
         )
         print(f"ガチャ確率アルゴリズム成功: ガチャ当選キャラID: {chosen_id}")
-
-       # 1. Supabaseからデータを取得
-        raw_list = response.data  # [{'cid': 10}, {'cid': 11}, ...]
+        raw_list = response.data  # ✅ 今度は正しく「response」から取得できます
         
         # 2. 数値だけのリストに変換
         cid_list = [item["cid"] for item in raw_list]
@@ -120,12 +118,11 @@ def demo_get_character(cnt):
         # 3. シャッフルする
         random.shuffle(cid_list)
         
-        # 🚨 【超重要】ガチャの回数（cnt）分だけ切り出す！
-        # 例: cntが1なら1体だけ、cntが8なら8体分（足りなければある分だけ）
+        # 4. ガチャの回数（cnt）分だけ切り出す！
         final_list = cid_list[:cnt]
         
         return final_list  # ✅ 切り出したリストを返す
-        
+
     except Exception as e:
         print(f"ガチャ排出失敗: {e}")
         return False
@@ -195,3 +192,59 @@ def get_character_profile_db(uid, cid):
     except Exception as e:
         print(f"所持キャラクター取得失敗: {e}")
         return False
+
+def update_home_character(uid, cid):
+    try:
+        # 所持確認
+        if not has_character(uid, cid):
+            return False
+
+        response = (
+            supabase
+            .table("home_character")
+            .upsert({
+                "uid": uid,
+                "cid": cid
+            })
+            .execute()
+        )
+
+        return response.data
+
+    except Exception as e:
+        print(f"ホームキャラ更新失敗: {e}")
+        return False
+
+def has_character(uid, cid):
+    try:
+        result = (
+            supabase
+            .table("user_character")
+            .select("cid")
+            .eq("uid", uid)
+            .eq("cid", cid)
+            .execute()
+        )
+
+        return len(result.data) > 0
+
+    except Exception as e:
+        print(f"所持確認失敗: {e}")
+        return False
+    
+def get_character_info(cid):
+    try:
+        result = (
+            supabase
+            .table("characters")
+            .select("name, img1")
+            .eq("cid", cid)
+            .single()
+            .execute()
+        )
+
+        return result.data
+
+    except Exception as e:
+        print(f"キャラ名取得失敗: {e}")
+        return None

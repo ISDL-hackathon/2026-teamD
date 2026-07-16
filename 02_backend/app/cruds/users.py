@@ -1,43 +1,48 @@
 from app import supabase
-from datetime import datetime
 
-
-def get_name(uid):
-    name = supabase.table("users").select("name").eq("uid", uid).execute()
-    if name:
-        return name.data[0]["name"]
-    return None
-
-
-def get_grade(uid):
-    print("users.get_grade が呼ばれた")
-    grade = supabase.table("users").select("grade").eq("uid", uid).execute()
-    print(grade.data)
-    if grade:
-        
-        return grade.data[0]["grade"]
-    return None
-
-def get_staying_flag(uid):
-    print("is_stayのフラグ獲得処理")
+def create_user_profile(auth_id, name, grade):
     try:
-        response = supabase.table("users").select("is_stay").eq("uid", uid).single().execute()
-        is_stay = response.data["is_stay"]
-        print("is_stay:", is_stay)
-        return is_stay
-
-    except Exception as e:
-        print(f"is_stayのエラー: {e}")
-        return False
-
-def get_start_time(uid):
-    try:
-        response = supabase.table("users").select("stay_start_time").eq("uid", uid).single().execute()
-        start_time = datetime.fromisoformat(
-            response.data["stay_start_time"]
+        response = (
+            supabase
+            .table("users")
+            .insert({
+                "auth_id": auth_id,
+                "name": name,
+                "grade": grade
+                "subject_uid": subject_uid, # 👈 追加！
+                "gb": 0,
+                "is_stay": False
+            })
+            .execute()
         )
-        print(f"start time :", start_time)
-        return start_time
+
+        return response.data
+
     except Exception as e:
-        print(f"スタート時間の取り出し失敗: {e}")
+        # 🕵️‍♂️ 何のエラーで落ちたかをコンソールに赤裸々に表示させる
+        print(f"❌ [DB ERROR] プロフィール登録に失敗しました: {e}")
+        raise e # 呼び出し元（auth.py）にエラーをそのまま投げる
+
+# 2. 【超重要】フロントの名前入力画面から叩く「更新用」の関数
+def update_user_profile(uid: int, name: str, grade: str):
+    try:
+        response = (
+            supabase
+            .table("users")
+            .update({
+                "name": name,
+                "grade": grade
+            })
+            .eq("uid", uid)
+            .execute()
+        )
+        return response.data
+    except Exception as e:
+        print(f"❌ [DB ERROR] プロフィール更新に失敗しました: {e}")
         return False
+
+
+    
+#create_user_profile()
+#get_user()
+#update_user()
