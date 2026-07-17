@@ -85,7 +85,8 @@ def get_current_user(
         
         # フロントのキー名（name, grade）に完全に合わせる！
         default_name = user_metadata.get("name") or "新規ユーザー"
-        default_grade = user_metadata.get("grade") or "U4"
+        raw_grade = user_metadata.get("grade") or "U4"
+        default_grade = GRADE_MAP.get(raw_grade, "U4")
         
         try:
             from app.cruds.users import create_user_profile
