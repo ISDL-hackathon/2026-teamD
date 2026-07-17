@@ -116,51 +116,15 @@ def demo_get_character(cnt):
     except Exception as e:
         print(f"ガチャ排出失敗: {e}")
         return False
-
-
-def get_owned_character_db(uid):
-    try:
-        response = (
-            supabase
-            .table("user_character")
-            .select("""
-                cid,
-                cnt,
-                characters!user_character_cid_fkey(
-                    cid,
-                    name,
-                    grade,
-                    img1,
-                    rare
-                )
-            """)
-            .eq("uid", uid)
-            .execute()
-        )
-
-
-        print(response.data)
-
-        for character in response.data:
-            print(character["characters"]["name"])
-            print(character["characters"]["grade"])
-            print(character["characters"]["img1"])
-
-        return response.data
-
-    except Exception as e:
-        print(f"所持キャラクター取得失敗: {e}")
-        return False
-    
-#uidからキャラクターデータを返す
 def get_character_profile_db(uid, cid):
     try:
         response = (
             supabase
             .table("user_character")
-            .select("""
+            .select(
+                """
                 cid,
-                characters (
+                characters(
                     name,
                     grade,
                     quote,
@@ -170,15 +134,73 @@ def get_character_profile_db(uid, cid):
                     role,
                     lab,
                     birth,
-                    img1
+                    img1,
+                    prefix,
+                    vc_gacha,
+                    vc_home,
+                    vc_quote_gacha,
+                    vc_quote_home
                 )
-             """)
+                """
+            )
             .eq("uid", uid)
             .eq("cid", cid)
             .execute()
         )
-        print(response.data)
+
+        if response.data:
+            for item in response.data:
+                char_info = item.get("characters")
+
+                if char_info:
+                    prefix = char_info.get("prefix") or ""
+                    name = char_info.get("name") or ""
+                    char_info["name"] = f"{prefix}{name}"
+
         return response.data
+
+    except Exception as e:
+        print(f"キャラクタープロフィール取得失敗: {e}")
+        return False
+    
+def get_owned_character_db(uid):
+    try:
+        response = (
+            supabase
+            .table("user_character")
+            .select(
+                """
+                cid,
+                cnt,
+                characters!user_character_cid_fkey(
+                    cid,
+                    name,
+                    grade,
+                    img1,
+                    rare,
+                    prefix,
+                    vc_gacha,
+                    vc_home,
+                    vc_quote_gacha,
+                    vc_quote_home
+                )
+                """
+            )
+            .eq("uid", uid)
+            .execute()
+        )
+
+        if response.data:
+            for item in response.data:
+                char_info = item.get("characters")
+
+                if char_info:
+                    prefix = char_info.get("prefix") or ""
+                    name = char_info.get("name") or ""
+                    char_info["name"] = f"{prefix}{name}"
+
+        return response.data
+
     except Exception as e:
         print(f"所持キャラクター取得失敗: {e}")
         return False

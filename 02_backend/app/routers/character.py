@@ -32,37 +32,39 @@ def get_owned_character(current_user=Depends(get_current_user)):
     return owner_character
 
 
-@router.post("/profile")
-def get_character_profile(request_data: CharacterProfileRequest, current_user=Depends(get_current_user)):
-    uid = current_user["uid"]
-    cid = request_data.cid
-    print(f"キャラクタープロフィールを表示 uid:{uid}, cid:{cid}")
+@router.post("/owned")
+def get_owned_character(
+    current_user=Depends(get_current_user),
+):
+    """音声フィールドを含む所持キャラクター一覧を返す。"""
 
-    char_data = get_character_profile_db(uid, cid)
-    if not char_data:
-        print("所持キャラがいません")
+    uid = current_user["uid"]
+    print(f"キャラクター詳細のトップ画面 uid: {uid}")
+
+    owned_characters = get_owned_character_db(uid)
+
+    if not owned_characters:
+        print("所持キャラクターはいません")
         return None
-    return char_data
 
+    return owned_characters
 
-@router.post("/home-character")
-def set_home_character(request_data: HomeCharacterRequest, current_user=Depends(get_current_user)):
+@router.post("/profile")
+def get_character_profile(
+    request_data: CharacterProfileRequest,
+    current_user=Depends(get_current_user),
+):
+    """音声フィールドを含むキャラクタープロフィールを返す。"""
+
     uid = current_user["uid"]
     cid = request_data.cid
-    result = update_home_character(uid, cid)
-    char_info = get_character_info(cid)
 
-    if not result:
-        return {
-            "status": "error",
-            "message": "所持していないキャラクターです"
-        }
+    print(f"キャラクタープロフィールを表示 uid: {uid}, cid: {cid}")
 
-    name = char_info["name"]
-    img1 = char_info["img1"]
+    character_data = get_character_profile_db(uid, cid)
 
-    return {
-        "cid": cid,
-        "name": name,
-        "img1": img1
-    }
+    if not character_data:
+        print("所持キャラクターがいません")
+        return None
+
+    return character_data
