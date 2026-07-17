@@ -38,11 +38,16 @@ class TradingSelectRequest(BaseModel):
 # 🌟 送信側（QR表示側）のための状態監視（ポーリング）API
 # ==========================================
 @router.get("/status")
-def get_trading_status(current_user=Depends(get_current_user)):
+def get_trading_status(
+    trade_id: int = None,  # 👈 【修正】フロントから trade_id を受け取れるように追加
+    current_user=Depends(get_current_user)
+):
     uid = current_user["uid"]
     
-    # 1. 現在アクティブなトレードIDを取得
-    trade_id = get_trade_id(uid)
+    # 【修正】フロントから trade_id が送られてきたらそれを使い、無ければ自動取得する
+    if not trade_id:
+        trade_id = get_trade_id(uid)
+        
     if not trade_id:
         return {"status": "pending"}
         
@@ -68,11 +73,8 @@ def get_trading_status(current_user=Depends(get_current_user)):
     
     # 3. 相手がすでに /complete を完了し、GB付与フェーズ（交換成立後）に入っているか確認
     if get_is_add_gb(trade_id):
-        # 送信側（自分）がトレードによって新しく獲得したキャラ情報を取得
         acquired_character = None
         try:
-            # 相手が /complete を実行したことでDB上の所有権は移転しているため、
-            # execute_trade を呼び出して自分が手に入れたキャラの情報を安全に取得
             acquired_character = execute_trade(trade_id, uid)
         except Exception as e:
             print(f"[STATUS API] 獲得キャラ取得エラー (デモ続行のため許容します): {e}")
