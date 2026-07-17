@@ -1,4 +1,3 @@
-from . import SUPABASE_URL, SUPABASE_ANON_KEY
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware

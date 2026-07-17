@@ -3,7 +3,7 @@ from typing import Any, Dict, Optional
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from app import supabase
+from app import supabase, supabase_auth
 
 
 # Authorization ヘッダーがない場合も、こちらで統一した401を返す。
@@ -51,7 +51,7 @@ def get_current_user(
     access_token = credentials.credentials
 
     try:
-        auth_response = supabase.auth.get_user(access_token)
+        auth_response = supabase_auth.auth.get_user(access_token)
         auth_user = auth_response.user
         print(f"👤 [DEBUG] Supabaseからユーザーの取得に成功しました: {auth_user.email}")
     except Exception as e:
