@@ -6,7 +6,7 @@ from supabase import Client, create_client
 
 load_dotenv()
 
-SUPABASE_URL = os.environ.get("SUPABASE_URL")
+SUPABASE_URL = os.environ.get("NEXT_PUBLIC_SUPABASE_URL")
 
 # ログインやアクセストークン確認に使用する低権限キー
 SUPABASE_PUBLISHABLE_KEY = (
