@@ -3,7 +3,7 @@ from typing import Any, Dict, Optional
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from app import supabase
+from app import supabase, supabase_auth
 
 
 # Authorization ヘッダーがない場合も、こちらで統一した401を返す。
@@ -12,12 +12,12 @@ bearer_scheme = HTTPBearer(auto_error=False)
 
 # 🌟 学年の日本語表記をフロント用の英数字コードに自動変換するマッピング
 GRADE_MAP = {
-    "学部1年": "U1", "B1": "U1", "U1": "U1",
-    "学部2年": "U2", "B2": "U2", "U2": "U2",
-    "学部3年": "U3", "B3": "U3", "U3": "U3",
-    "学部4年": "U4", "B4": "U4", "U4": "U4",
-    "修士1年": "M1", "M1": "M1",
-    "修士2年": "M2", "M2": "M2"
+    "学部1年": "U1",
+    "学部2年": "U2", 
+    "学部3年": "U3",
+    "学部4年": "U4", 
+    "修士1年": "M1",
+    "修士2年": "M2"
 }
 
 def sanitize_user_data(user_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -51,7 +51,7 @@ def get_current_user(
     access_token = credentials.credentials
 
     try:
-        auth_response = supabase.auth.get_user(access_token)
+        auth_response = supabase_auth.auth.get_user(access_token)
         auth_user = auth_response.user
         print(f"👤 [DEBUG] Supabaseからユーザーの取得に成功しました: {auth_user.email}")
     except Exception as e:
