@@ -20,6 +20,10 @@ def add_my_uid(my_uid):
 # tradeテーブルにtar_uid追加
 def add_tar_uid(tar_uid, trade_id):
     try:
+        if not check_my_tar_uid(tar_uid, trade_id):
+            print("自分自身のQRコードは読み込めません")
+            return False
+
         response = (
             supabase.table("trade")
             .update({
@@ -32,6 +36,21 @@ def add_tar_uid(tar_uid, trade_id):
         return response.data
     except Exception as e:
         print(f"tar_uid登録失敗: {e}")
+        return False
+
+def check_my_tar_uid(tar_uid, trade_id):
+    """スキャンしたユーザーとQRコードの作成者が同一でないことを確認する。"""
+    try:
+        response = (
+            supabase.table("trade")
+            .select("my_uid")
+            .eq("trade_id", trade_id)
+            .single()
+            .execute()
+        )
+        return bool(response.data) and response.data["my_uid"] != tar_uid
+    except Exception as e:
+        print(f"UID確認失敗: {e}")
         return False
 
 def change_trade_flag(trade_id, is_allowed):

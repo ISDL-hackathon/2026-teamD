@@ -14,6 +14,7 @@ from app.routers import (
     qr,
     gb,
     trade,
+    login,
 )
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -70,6 +71,7 @@ app.include_router(conversation.router)
 app.include_router(qr.router)
 app.include_router(character.router)
 app.include_router(trade.router)
+app.include_router(login.router)
 
 
 if __name__ == "__main__":

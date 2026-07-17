@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
 from app.cruds.auth import get_current_user  # 💡プロジェクトの認証関数に合わせてください
-from app.cruds.get_users_table import get_user_by_uid, update_user_gb  # 💡CRUD側の関数
+from app.cruds.users import get_user_by_sid
 from app import supabase
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -47,6 +46,7 @@ def search_user_by_sid(sid: str, current_user = Depends(get_current_user)):
         "user": {
             "uid": opponent["uid"],
             "name": opponent["name"],
-            "grade": opponent["grade"]
+            "grade": opponent["grade"],
+            "sid": opponent["sid"],
         }
     }
