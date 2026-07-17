@@ -1,38 +1,121 @@
 // app/tutorial/page.tsx
 "use client";
 
-import { useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import TitleScreen, { RegisterScreen, LoginScreen } from "./_components/screens";
 import { api } from '../auth/api';
+
+type TutorialSlide = {
+  mediaSrc: string;
+  audioSrc: string | null;
+};
+
+type TutorialGachaResponse = {
+  status?: string;
+  message?: string;
+  name?: string;
+};
 
 export default function GameFlow() {
   const [step, setStep] = useState<'TITLE' | 'REGISTER' | 'LOGIN' | 'SLIDESHOW' | 'GACHA_RESULT'>('TITLE');
   const [slideIndex, setSlideIndex] = useState(0);
+  const [grade, setGrade] = useState('学部4年');
   const [mediaError, setMediaError] = useState<string | null>(null);
-  
-  const [gachaCharacter, setGachaCharacter] = useState<any>(null);
+  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+  const [audioNeedsGesture, setAudioNeedsGesture] = useState(false);
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const audioAutoplayRef = useRef(true);
+
+  const [gachaCharacter, setGachaCharacter] = useState<TutorialGachaResponse | null>(null);
   const [isGachaLoading, setIsGachaLoading] = useState(false);
 
   // 🌟 タップした場所の座標を保存する状態
   const [tapEffects, setTapEffects] = useState<{ id: number; x: number; y: number }[]>([]);
 
-  const tutorialSlides = [
-    '/tut1.png',  '/tut2.png',  '/tut3.png',  '/tut4.png',  '/tut5.png',
-    '/tut6.png',  '/tut7.png',  '/tut8.png',  '/tut9.png',  '/tut10.png',
-    '/tut11.png', '/tut12.png', '/tut13.png', '/tut14.png', '/tut15.png',
-    '/tut_gacha.mp4', 
-    '/tut17.png', '/tut18.png', '/tut19.png', '/tut20.png', '/tut21.png', '/tut22.png'
-  ];
+  const tutorialSlides = useMemo<TutorialSlide[]>(() => {
+    const gradeSlide = grade.startsWith('修士')
+      ? { mediaSrc: '/tut6.png', audioSrc: '/audio/tutorial/5-m1m2.m4a' }
+      : { mediaSrc: '/tut5.png', audioSrc: '/audio/tutorial/5-u4.m4a' };
 
-  const currentPath = tutorialSlides[slideIndex];
+    return [
+      { mediaSrc: '/tut1.png', audioSrc: '/audio/tutorial/1.m4a' },
+      { mediaSrc: '/tut2.png', audioSrc: '/audio/tutorial/2.m4a' },
+      { mediaSrc: '/tut3.png', audioSrc: '/audio/tutorial/3.m4a' },
+      { mediaSrc: '/tut4.png', audioSrc: '/audio/tutorial/4.m4a' },
+      gradeSlide,
+      { mediaSrc: '/tut7.png', audioSrc: '/audio/tutorial/6.m4a' },
+      { mediaSrc: '/tut8.png', audioSrc: '/audio/tutorial/7.m4a' },
+      { mediaSrc: '/tut9.png', audioSrc: '/audio/tutorial/8.m4a' },
+      { mediaSrc: '/tut10.png', audioSrc: '/audio/tutorial/9.m4a' },
+      { mediaSrc: '/tut11.png', audioSrc: '/audio/tutorial/10.m4a' },
+      { mediaSrc: '/tut12.png', audioSrc: '/audio/tutorial/11-english.m4a' },
+      { mediaSrc: '/tut13.png', audioSrc: '/audio/tutorial/12.m4a' },
+      { mediaSrc: '/tut14.png', audioSrc: '/audio/tutorial/13.m4a' },
+      { mediaSrc: '/tut15.png', audioSrc: '/audio/tutorial/14.m4a' },
+      { mediaSrc: '/tut_gacha.mp4', audioSrc: '/audio/tutorial/15.m4a' },
+      { mediaSrc: '/tut17.png', audioSrc: '/audio/tutorial/16.m4a' },
+      { mediaSrc: '/tut18.png', audioSrc: '/audio/tutorial/17.m4a' },
+      { mediaSrc: '/tut19.png', audioSrc: '/audio/tutorial/18.m4a' },
+      { mediaSrc: '/tut20.png', audioSrc: '/audio/tutorial/kuranuki-v2.m4a' },
+      // 00_docs の tutorial フォルダには、この画面用の音声素材がありません。
+      { mediaSrc: '/tut21.png', audioSrc: null },
+      { mediaSrc: '/tut22.png', audioSrc: '/audio/tutorial/19.m4a' },
+    ];
+  }, [grade]);
+
+  const currentSlide = tutorialSlides[slideIndex];
+  const currentPath = currentSlide?.mediaSrc;
+  const currentAudioPath = currentSlide?.audioSrc;
   const isMp4 = currentPath?.endsWith('.mp4');
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    audio.pause();
+    audio.currentTime = 0;
+    setIsAudioPlaying(false);
+    setAudioNeedsGesture(false);
+
+    if (step !== 'SLIDESHOW' || !currentAudioPath || !audioAutoplayRef.current) return;
+
+    audio.load();
+    void audio.play().catch(() => {
+      // Chrome/Safari が音声の自動再生を止めた場合は、再生ボタンを案内する。
+      setIsAudioPlaying(false);
+      setAudioNeedsGesture(true);
+    });
+
+    return () => {
+      audio.pause();
+    };
+  }, [currentAudioPath, step]);
+
+  const handleAudioToggle = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    const audio = audioRef.current;
+    if (!audio || !currentAudioPath) return;
+
+    if (isAudioPlaying) {
+      audioAutoplayRef.current = false;
+      audio.pause();
+      return;
+    }
+
+    audioAutoplayRef.current = true;
+    setAudioNeedsGesture(false);
+    audio.currentTime = 0;
+    void audio.play().catch(() => {
+      setAudioNeedsGesture(true);
+    });
+  };
 
   const handleSlideTap = (e: React.MouseEvent<HTMLDivElement>) => {
     // 1. タップ演出の生成処理
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    
+
     const newEffect = { id: Date.now(), x, y };
     setTapEffects(prev => [...prev, newEffect]);
 
@@ -59,11 +142,11 @@ export default function GameFlow() {
 
     try {
       console.log("📡 チュートリアルガチャAPI呼び出し... (Bodyなし)");
-      const res = await api.post('/gacha/tutorial');
+      const res = await api.post<TutorialGachaResponse>('/gacha/tutorial');
 
       const data = res.data;
       console.log("🎁 ガチャAPIレスポンス成功:", data);
-      
+
       if (data.status !== "error") {
         setGachaCharacter(data);
         setStep('GACHA_RESULT');
@@ -88,7 +171,7 @@ export default function GameFlow() {
 
   return (
     <div style={{ background: '#222', width: '100vw', height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-      
+
       <style>
         {`
           @keyframes gameTapRipple {
@@ -126,17 +209,18 @@ export default function GameFlow() {
         display: 'flex',
         flexDirection: 'column'
       }}>
-        
+
         {step === 'TITLE' && (
           <TitleScreen 
             onRegisterClick={() => setStep('REGISTER')} 
             onLoginClick={() => setStep('LOGIN')} 
           />
         )}
-        
+
         {step === 'REGISTER' && (
           <RegisterScreen onRegisterSuccess={(name, grade) => {
             // ユーザー特定をトークンで行うため、userIdの保持は不要に
+            setGrade(grade);
             setStep('SLIDESHOW');
             setSlideIndex(0);
           }} />
@@ -163,6 +247,69 @@ export default function GameFlow() {
               overflow: 'hidden'
             }}
           >
+            {currentAudioPath && (
+              <>
+                <audio
+                  ref={audioRef}
+                  src={currentAudioPath}
+                  preload="auto"
+                  onPlay={() => {
+                    setIsAudioPlaying(true);
+                    setAudioNeedsGesture(false);
+                  }}
+                  onPause={() => setIsAudioPlaying(false)}
+                  onEnded={() => setIsAudioPlaying(false)}
+                  onError={() => setMediaError(`音声ファイルが見つかりません:\npublic${currentAudioPath}`)}
+                />
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 'max(12px, env(safe-area-inset-top))',
+                    right: '12px',
+                    zIndex: 60,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'flex-end',
+                    gap: '6px',
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={handleAudioToggle}
+                    aria-pressed={isAudioPlaying}
+                    style={{
+                      border: '1px solid rgba(255,255,255,0.6)',
+                      borderRadius: '999px',
+                      background: 'rgba(0,0,0,0.72)',
+                      color: '#fff',
+                      padding: '9px 13px',
+                      fontSize: '13px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      backdropFilter: 'blur(6px)',
+                    }}
+                  >
+                    {isAudioPlaying ? '🔊 音声を停止' : '▶ 音声を再生'}
+                  </button>
+                  {audioNeedsGesture && (
+                    <span
+                      style={{
+                        maxWidth: '190px',
+                        borderRadius: '8px',
+                        background: 'rgba(0,0,0,0.72)',
+                        color: '#fff',
+                        padding: '5px 8px',
+                        fontSize: '11px',
+                        lineHeight: 1.4,
+                      }}
+                    >
+                      ブラウザの制限により、ボタンを押すと音声が流れます
+                    </span>
+                  )}
+                </div>
+              </>
+            )}
+
             {tapEffects.map(effect => (
               <div 
                 key={effect.id}
@@ -207,6 +354,27 @@ export default function GameFlow() {
                 onError={() => setMediaError(`画像ファイルが見つかりません:\npublic${currentPath}`)}
               />
             )}
+
+            {mediaError && (
+              <div
+                role="alert"
+                style={{
+                  position: 'absolute',
+                  left: '16px',
+                  right: '16px',
+                  bottom: '16px',
+                  zIndex: 70,
+                  borderRadius: '10px',
+                  background: 'rgba(127, 29, 29, 0.92)',
+                  color: '#fff',
+                  padding: '12px',
+                  whiteSpace: 'pre-line',
+                  fontSize: '12px',
+                }}
+              >
+                {mediaError}
+              </div>
+            )}
           </div>
         )}
 
@@ -216,19 +384,19 @@ export default function GameFlow() {
                style={{ 
                  backgroundImage: 'radial-gradient(circle at center, #1e293b 0%, #020617 100%)',
                }}>
-            
+
             <div className="absolute inset-0 z-50 pointer-events-none"
                  style={{ animation: 'whiteFlash 1.2s ease-out forwards' }} />
-            
+
             <div className="flex flex-col items-center z-10 w-full px-4 pt-12 h-full justify-between pb-12">
-              
+
               <div style={{ animation: 'slideDownFade 0.8s ease-out forwards', opacity: 0 }}>
                 <p className="text-yellow-400 font-black tracking-[0.4em] text-sm mb-2 drop-shadow-[0_0_8px_rgba(234,179,8,0.8)]">
                   NEW CHARACTER
                 </p>
                 <div className="h-[1px] w-32 bg-gradient-to-r from-transparent via-yellow-500 to-transparent mx-auto" />
               </div>
-              
+
               <div className="relative w-full max-w-[300px] mt-8"
                    style={{ animation: 'focusIn 1s ease-out 0.3s forwards', opacity: 0 }}>
                 <div className="absolute -inset-4 bg-yellow-500/10 rounded-full blur-2xl animate-pulse" />
@@ -241,7 +409,8 @@ export default function GameFlow() {
                 </div>
                 <div className="bg-black/40 backdrop-blur-sm p-4 rounded-xl border border-slate-700/50 text-left">
                   <p className="text-slate-300 text-sm leading-relaxed">
-                    データベースとの同期完了。<br/>
+                    データベースとの同期完了。
+
                     あなたのプロジェクトにアサインされました。
                   </p>
                 </div>
@@ -258,7 +427,7 @@ export default function GameFlow() {
                   確認
                 </button>
               </div>
-              
+
             </div>
           </div>
         )}
