@@ -29,7 +29,7 @@ export default function MissionInputPage() {
 
     try {
       // 💡 バックエンドの会話完了APIを叩く (uidはヘッダーのトークンから自動識別されるため answer のみ送信)
-      const response = await api.post('/mission/complete', {
+      const response = await api.post('/staying/input', {
         answer: answer
       });
 
