@@ -1,23 +1,33 @@
 from fastapi import APIRouter, Depends, HTTPException
 from app.cruds.auth import get_current_user  # 💡プロジェクトの認証関数に合わせてください
-from app.cruds.users import get_user_by_sid, update_user_gb  # 💡CRUD側の関数
+from app.cruds.users import get_user_by_sid
+from app import supabase
 
 router = APIRouter(prefix="/users", tags=["users"])
 
-# --- 1. ログイン中の自分の情報を取得する ---
 @router.get("/me")
 def read_user_me(current_user = Depends(get_current_user)):
     """
     ログインしている自分自身の情報を返す
     """
+    uid = current_user.get("uid")
+    
+    # 🟢 直接「users」テーブルから、このユーザーの最新の「gb」の値を取得する
+    try:
+        response = supabase.table("users").select("gb").eq("uid", uid).single().execute()
+        # 本物のGB数を取得。取得できなければ安全に 0 に逃がす
+        real_gb = response.data.get("gb", 0) if response and response.data else 0
+    except Exception as e:
+        print(f"⚠️ DBからGB数の取得に失敗しました: {e}")
+        real_gb = 0
+
     return {
         "status": "success",
         "user": {
-            "uid": current_user.uid,
-            "name": current_user.name,
-            "grade": current_user.grade,
-            "sid": current_user.sid,
-            "gb": current_user.gb  # 所持GBなど
+            "uid": uid,
+            "name": current_user.get("name"),
+            "grade": current_user.get("grade"),
+            "gb": real_gb  # 💡 ここに本物のGB数がセットされます！
         }
     }
 
@@ -34,9 +44,9 @@ def search_user_by_sid(sid: str, current_user = Depends(get_current_user)):
     return {
         "status": "success",
         "user": {
-            "uid": opponent.uid,
-            "name": opponent.name,
-            "grade": opponent.grade,
-            "sid": opponent.sid
+            "uid": opponent["uid"],
+            "name": opponent["name"],
+            "grade": opponent["grade"],
+            "sid": opponent["sid"],
         }
     }

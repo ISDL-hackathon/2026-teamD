@@ -1,6 +1,16 @@
 from app import supabase
 from datetime import datetime
 
+def get_user_by_uid(uid: str) -> dict | None:
+    try:
+        response = supabase.table("users").select("*").eq("uid", uid).execute()
+        if response.data:
+            return response.data[0]
+        return None
+    except Exception as e:
+        print(f"get_user_by_uid エラー: {e}")
+        return None
+
 
 def get_name(uid):
     name = supabase.table("users").select("name").eq("uid", uid).execute()
@@ -59,13 +69,7 @@ def update_user_gb(uid: int, additional_gb: int) -> dict | None:
 
         new_gb = current_gb + additional_gb
 
-        update_result = (
-            supabase
-            .table("users")
-            .update({"gb": new_gb})
-            .eq("uid", uid)
-            .execute()
-        )
+        update_result = supabase.table("users").update({"gb": new_gb}).eq("uid", uid).execute()
 
         if update_result.data:
             print(f"ユーザー(UID: {uid}) のGBを更新しました: {current_gb} -> {new_gb}")

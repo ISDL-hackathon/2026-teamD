@@ -10,10 +10,11 @@ from app.routers import (
     gatya,
     staying,
     conversation,
-    qr,
     users,
+    qr,
     gb,
-    trade
+    trade,
+    login,
 )
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -48,6 +49,8 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:3000",
         "http://127.0.0.1:3000",
+        "https://two026-teamd-nbf9.onrender.com",
+        "https://2026-team-d.vercel.app",
         # 必要に応じて、今後デプロイするフロントのURLもここに追加    ,
     ],
     allow_credentials=True,
@@ -69,6 +72,8 @@ app.include_router(conversation.router)
 app.include_router(qr.router)
 app.include_router(character.router)
 app.include_router(trade.router)
+app.include_router(login.router)
+
 
 if __name__ == "__main__":
     uvicorn.run("app.main:app", host="127.0.0.1", port=8000, reload=True)
