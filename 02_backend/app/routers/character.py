@@ -13,6 +13,11 @@ from app.cruds.character import (
 
 router = APIRouter(prefix="/character", tags=["character"])
 
+# 💡 エラーの原因だった空の CharacterRequest は削除しました。
+# もし今後使う場合は、以下のように「pass」を入れておけばエラーになりません。
+# class CharacterRequest(BaseModel):
+#     pass
+
 class CharacterProfileRequest(BaseModel):
     cid: int
 
@@ -20,17 +25,23 @@ class HomeCharacterRequest(BaseModel):
     cid: int
 
 
-@router.post("/owend")
-def get_owned_character(current_user=Depends(get_current_user)):
-    uid = current_user["uid"]
-    print(f"キャラクター詳細のトップ画面  uid:", uid)
-    owner_character = get_owned_character_db(uid)
-    print(owner_character)
-    if not owner_character:
-        print("所持キャラはいません")
-        return None
-    return owner_character
+# 🌟 "/owend" から "/owned" にスペルミスを修正しました！これでフロントと繋がります
+@router.post("/owned")
+def get_owned_character(
+    current_user=Depends(get_current_user),
+):
+    """音声フィールドを含む所持キャラクター一覧を返す。"""
 
+    uid = current_user["uid"]
+    print(f"キャラクター詳細のトップ画面 uid: {uid}")
+
+    owned_characters = get_owned_character_db(uid)
+
+    if not owned_characters:
+        print("所持キャラクターはいません")
+        return None
+
+    return owned_characters
 
 @router.post("/owned")
 def get_owned_character(

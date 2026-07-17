@@ -1,6 +1,6 @@
 from app import supabase
 
-#キャラクターが排出
+# キャラクターが排出
 def get_character_by_id(uid, cid):
     print("キャラクター排出実装")
     try:
@@ -14,7 +14,7 @@ def get_character_by_id(uid, cid):
         print(f"キャラクター取得失敗: {e}")
         return False
 
-#ユーザにキャラクターを追加
+# ユーザにキャラクターを追加
 def add_character_to_user(uid, cid):
     print("キャラクター追加実装")
     try:
@@ -64,17 +64,17 @@ def add_character_to_user(uid, cid):
         print(f"キャラクター追加失敗: {e}")
         return False
 
-#キャラ被り
+# キャラ被り
 def check_character_ownership(uid, cid):
     print("キャラ被り実装中")
     res = supabase.table("user_character").select("id").eq("uid", uid).eq("cid", cid).execute()
     return len(res.data) > 0  # 1件以上あればTrue（被り）
 
-#キャラ削除
+# キャラ削除
 def remove_character_from_user(uid, cid):
     print("キャラクター削除未実装")
 
-#ガチャ確率アルゴリズム
+# ガチャ確率アルゴリズム
 def get_character_rate(cnt):
     import random
     print("ガチャ確率アルゴリズム実装")
@@ -96,26 +96,77 @@ def get_character_rate(cnt):
         print(f"ガチャ排出失敗: {e}")
         return False
     
-#デモ用
+# デモ用
 def demo_get_character(cnt):
     import random
     print("デモ版ガチャ確率アルゴリズム実装")
-    chosen_id  = []
     try:
-        chosen_id = (
-        supabase.table("characters")
-        .select("cid")
-
-        .in_("cid", list(range(1, 8)))
-        .execute()
+        response = (  # 🌟 変数名を「response」に統一しました
+            supabase.table("characters")
+            .select("cid")
+            .in_("cid", list(range(1, 8)))
+            .execute()
         )
-        print(f"ガチャ確率アルゴリズム成功: ガチャ当選キャラID: {chosen_id}")
-        chosen_id = chosen_id.data
-        random.shuffle(chosen_id)
-        return chosen_id.data
+        print(f"ガチャ確率アルゴリズム成功: ガチャ当選キャラID: {response.data}")
+        raw_list = response.data
+        
+        # 2. 数値だけのリストに変換
+        cid_list = [item["cid"] for item in raw_list]
+        
+        # 3. シャッフルする
+        random.shuffle(cid_list)
+        
+        # 4. ガチャの回数（cnt）分だけ切り出す！
+        final_list = cid_list[:cnt]
+        
+        return final_list  # ✅ 切り出したリストを返す
+
     except Exception as e:
         print(f"ガチャ排出失敗: {e}")
         return False
+
+def get_owned_character_db(uid):
+    try:
+        response = (
+            supabase
+            .table("user_character")
+            .select(
+                """
+                cid,
+                cnt,
+                characters!user_character_cid_fkey(
+                    cid,
+                    name,
+                    grade,
+                    img1,
+                    rare,
+                    prefix,
+                    vc_gacha,
+                    vc_home,
+                    vc_quote_gacha,
+                    vc_quote_home
+                )
+                """
+            )
+            .eq("uid", uid)
+            .execute()
+        )
+
+        if response.data:
+            for item in response.data:
+                char_info = item.get("characters")
+
+                if char_info:
+                    prefix = char_info.get("prefix") or ""
+                    name = char_info.get("name") or ""
+                    char_info["name"] = f"{prefix}{name}"
+
+        return response.data
+
+    except Exception as e:
+        print(f"所持キャラクター取得失敗: {e}")
+        return False
+
 def get_character_profile_db(uid, cid):
     try:
         response = (
@@ -205,6 +256,10 @@ def get_owned_character_db(uid):
         print(f"所持キャラクター取得失敗: {e}")
         return False
 
+    except Exception as e:
+        print(f"キャラクタープロフィール取得失敗: {e}")
+        return False
+   
 def update_home_character(uid, cid):
     try:
         # 所持確認
@@ -249,11 +304,17 @@ def get_character_info(cid):
         result = (
             supabase
             .table("characters")
-            .select("name, img1")
+            .select("name, img1, prefix")  # 🌟 prefixも追加
             .eq("cid", cid)
             .single()
             .execute()
         )
+
+        # 🌟 prefixとnameを結合させる処理を追加
+        if result.data:
+            prefix = result.data.get("prefix") or ""
+            name = result.data.get("name") or ""
+            result.data["name"] = f"{prefix}{name}"  # 合体！
 
         return result.data
 

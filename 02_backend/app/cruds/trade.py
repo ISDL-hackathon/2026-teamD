@@ -1,6 +1,6 @@
 from app import supabase
 
-#tradeテーブルにmy_uid追加
+# tradeテーブルにmy_uid追加
 def add_my_uid(my_uid):
     try:
         response = (
@@ -17,9 +17,13 @@ def add_my_uid(my_uid):
         print(f"my_uid登録失敗: {e}")
         return False
 
-#tradeテーブルにtar_uid追加
+# tradeテーブルにtar_uid追加
 def add_tar_uid(tar_uid, trade_id):
     try:
+        if not check_my_tar_uid(tar_uid, trade_id):
+            print("自分自身のQRコードは読み込めません")
+            return False
+
         response = (
             supabase.table("trade")
             .update({
@@ -34,11 +38,30 @@ def add_tar_uid(tar_uid, trade_id):
         print(f"tar_uid登録失敗: {e}")
         return False
 
-def change_trade_flag(trade_id, is_trade):
+def check_my_tar_uid(tar_uid, trade_id):
+    """スキャンしたユーザーとQRコードの作成者が同一でないことを確認する。"""
     try:
         response = (
             supabase.table("trade")
-            .update({"is_trade": is_trade})
+            .select("my_uid")
+            .eq("trade_id", trade_id)
+            .single()
+            .execute()
+        )
+        return bool(response.data) and response.data["my_uid"] != tar_uid
+    except Exception as e:
+        print(f"UID確認失敗: {e}")
+        return False
+
+def change_trade_flag(trade_id, is_allowed):
+    try:
+        # ⭕️ 案A採用：許可(True)なら取引継続(is_trade=False)
+        # 拒否(False)なら取引終了/キャンセル(is_trade=True)
+        is_trade_value = not is_allowed
+
+        response = (
+            supabase.table("trade")
+            .update({"is_trade": is_trade_value})
             .eq("trade_id", trade_id)
             .execute()
         )
@@ -177,7 +200,6 @@ def select_trade_characters(my_uid, tar_uid):
         # 相手のキャラから自分が持ってないものだけ追加
         if tar_result.data:
             for char in tar_result.data:
-                # 結合先の characters 情報が正しく取得できているかチェック
                 if char.get("cid") not in my_cids and char.get("characters") is not None:
                     characters.append(char["characters"])
 
@@ -207,12 +229,9 @@ def check_users_my_or_tar(uid):
 
         trade_data = response.data[0]
 
-
         if trade_data["my_uid"] == uid:
-            # 自分が my なので、相手の tar_uid を返す
             return trade_data["my_uid"]
         else:
-            # 自分が tar なので、相手の my_uid を返す
             return trade_data["tar_uid"]
 
     except Exception as e:
@@ -246,28 +265,22 @@ def get_my_flag_tar_flag(uid):
 
 def add_trade_character(uid, cid):
     try:
-        # 交換相手取得
         tar_uid = get_opponent_uid(uid)
 
         if tar_uid is None:
             print("交換相手なし")
             return False
 
-
-        # ★追加
-        # 相手から交換可能なキャラか確認
         if not check_trade_character(uid, tar_uid, cid):
             print("交換できないキャラです")
             return False
         
-        # 交換相手取得
         tar_uid = get_opponent_uid(uid)
 
         if tar_uid is None:
             print("交換相手なし")
             return False
 
-        # 自分がmy_uid側かtar_uid側か確認
         result = (
             supabase
             .table("trade")
@@ -282,7 +295,6 @@ def add_trade_character(uid, cid):
 
         trade = result.data[0]
 
-        # 自分がmy_uid側ならmy_cidを更新
         if trade["my_uid"] == uid:
             response = (
                 supabase
@@ -294,8 +306,6 @@ def add_trade_character(uid, cid):
                 .eq("trade_id", trade["trade_id"])
                 .execute()
             )
-
-        # 自分がtar_uid側ならtar_cidを更新
         else:
             response = (
                 supabase
@@ -318,7 +328,6 @@ def add_trade_character(uid, cid):
 
 def execute_trade(trade_id, uid):
     try:
-        # trade取得
         result = (
             supabase
             .table("trade")
@@ -335,24 +344,24 @@ def execute_trade(trade_id, uid):
         my_uid = trade["my_uid"]
         tar_uid = trade["tar_uid"]
 
-        my_cid = trade["my_cid"]
-        tar_cid = trade["tar_cid"]
+        my_cid = trade["my_cid"]   # 自分が欲しいキャラ (疋田さん: 2)
+        tar_cid = trade["tar_cid"] # 相手が欲しいキャラ (河村くん: 12)
 
+        # ⭕️ 変数のあべこべを修正：自分と相手で消費・獲得するキャラを正しく入れ替え
         if my_uid == uid:
             if trade["my_flag"]:
-                remove_character(my_uid, tar_cid)
+                remove_character(my_uid, tar_cid)  # 相手にあげるキャラ(河村くん:12)を自分の手持ちから削除
                 print("削除完了")
-                add_character(my_uid, my_cid)
+                add_character(my_uid, my_cid)     # 相手から貰うキャラ(疋田さん:2)を自分の手持ちに追加
                 print("追加完了")
-        else :
+        else:
             if trade["tar_flag"]:
-                remove_character(tar_uid, my_cid)
+                remove_character(tar_uid, my_cid)  # 自分にあげるキャラ(疋田さん:2)を相手の手持ちから削除
                 print("削除完了")
-                # 追加
-                add_character(tar_uid, tar_cid)
+                add_character(tar_uid, tar_cid)    # 自分から貰うキャラ(河村くん:12)を相手の手持ちに追加
                 print("追加完了")
 
-        # ★自分の交換完了フラグをOFF
+        # 自分の交換完了フラグをOFF
         if uid == my_uid:
             supabase \
                 .table("trade") \
@@ -371,7 +380,6 @@ def execute_trade(trade_id, uid):
                 .eq("trade_id", trade_id) \
                 .execute()
 
-
         # 最新状態取得
         flag_result = (
             supabase
@@ -382,7 +390,6 @@ def execute_trade(trade_id, uid):
         )
 
         flags = flag_result.data[0]
-
 
         # 両方完了なら交換終了
         if (
@@ -397,10 +404,8 @@ def execute_trade(trade_id, uid):
                 .eq("trade_id", trade_id) \
                 .execute()
 
-
-        # 自分が受け取ったキャラ
-        received_cid = tar_cid if uid == my_uid else my_cid
-
+        # ⭕️ 修正：自分が最終的に受け取った（画面に表示する）キャラIDに修正
+        received_cid = my_cid if uid == my_uid else tar_cid
 
         character = (
             supabase
@@ -419,7 +424,6 @@ def execute_trade(trade_id, uid):
             return character.data[0]
 
         return None
-
 
     except Exception as e:
         print(f"交換処理失敗:{e}")
@@ -442,14 +446,12 @@ def remove_character(uid, cid):
     cnt = result.data[0]["cnt"]
 
     if cnt <= 1:
-        # 0枚なら削除
         supabase \
             .table("user_character") \
             .delete() \
             .eq("uid", uid) \
             .eq("cid", cid) \
             .execute()
-
     else:
         supabase \
             .table("user_character") \
@@ -463,7 +465,6 @@ def remove_character(uid, cid):
     return True
 
 def add_character(uid, cid):
-
     result = (
         supabase
         .table("user_character")
@@ -473,11 +474,8 @@ def add_character(uid, cid):
         .execute()
     )
 
-
     if result.data:
-        # 既に持っている
         cnt = result.data[0]["cnt"]
-
         supabase \
             .table("user_character") \
             .update({
@@ -486,9 +484,7 @@ def add_character(uid, cid):
             .eq("uid", uid) \
             .eq("cid", cid) \
             .execute()
-
     else:
-        # 新規所持
         supabase \
             .table("user_character") \
             .insert({
@@ -502,19 +498,16 @@ def add_character(uid, cid):
 
 def check_trade_character(my_uid, tar_uid, cid):
     try:
-        # 交換可能キャラ取得
         characters = select_trade_characters(my_uid, tar_uid)
 
         if characters is None:
             return False
 
-        # 候補のcid一覧
         trade_cids = {
             char["cid"]
             for char in characters
         }
 
-        # 候補内ならOK
         return cid in trade_cids
 
     except Exception as e:
@@ -523,9 +516,13 @@ def check_trade_character(my_uid, tar_uid, cid):
     
 def finish_trade(trade_id):
     try:
+        # ⭕️ 案A採用：GB付与フェーズが終了したタイミングで is_trade も True に更新し、取引を完了（閉鎖）とする
         response = (
             supabase.table("trade")
-            .update({"is_add_gb": False})
+            .update({
+                "is_add_gb": False,
+                "is_trade": True
+            })
             .eq("trade_id", trade_id)
             .eq("is_add_gb", True)
             .execute()
@@ -534,5 +531,5 @@ def finish_trade(trade_id):
         return response.data
 
     except Exception as e:
-        print(f"is_add_gb更新失敗: {e}")
+        print(f"is_add_gbおよびis_trade更新失敗: {e}")
         return False

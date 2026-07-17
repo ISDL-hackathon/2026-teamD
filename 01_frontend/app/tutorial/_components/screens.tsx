@@ -1,9 +1,12 @@
+// app/tutorial/_components/screens.tsx
 "use client";
 
 import React, { useState } from 'react';
+import { api } from '../../auth/api';
+import { supabase } from '../../auth/supabase';
 
 // ==========================================
-// 📄 1. タイトル画面 (TitleScreen) - 透明ボタン版
+// 📄 1. タイトル画面 (TitleScreen)
 // ==========================================
 export default function TitleScreen({ 
   onRegisterClick, 
@@ -33,30 +36,17 @@ export default function TitleScreen({
         height: '100vh'
       }}
     >
-      {/* 💥 タップ時のフラッシュ演出エフェクト */}
-      {effect && (
-        <div className="absolute inset-0 bg-white/20 animate-ping pointer-events-none z-50" />
-      )}
-
-      {/* 🗺️ 画像内の「新規登録」「ログイン」の箱の上にぴったり重ねる透明なコンテナ
-        下からの位置（bottom）や高さ（h-24など）は、ブラウザを見ながら微調整してください！
-      */}
       <div className="absolute bottom-[12%] left-0 w-full px-6 flex gap-4 h-20 z-10">
-        
-        {/* 左側：新規登録用の透明ボタン */}
         <button 
           onClick={() => handleTap(onRegisterClick)}
           className="flex-1 bg-transparent border-0 opacity-0 cursor-pointer active:bg-white/10 active:opacity-100 transition-all rounded-2xl"
           aria-label="新規登録"
         />
-        
-        {/* 右側：ログイン用の透明ボタン */}
         <button 
           onClick={() => handleTap(onLoginClick)}
           className="flex-1 bg-transparent border-0 opacity-0 cursor-pointer active:bg-white/10 active:opacity-100 transition-all rounded-2xl"
           aria-label="ログイン"
         />
-
       </div>
     </div>
   );
@@ -68,62 +58,71 @@ export default function TitleScreen({
 export function RegisterScreen({
   onRegisterSuccess
 }: {
-  onRegisterSuccess: (userId: number, name: string, grade: string) => void;
+  onRegisterSuccess: (name: string, grade: string) => void;
 }) {
-  const [studentId, setStudentId] = useState('');
+  // 🌟 学籍番号（studentId）をメールアドレス（email）に変更
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
-  // 🎓 初期値を「学部4年」に変更
   const [grade, setGrade] = useState('学部4年');
   const [isLoading, setIsLoading] = useState(false);
-// 📄 Screens.tsx 内の RegisterScreen の中身
 
-const giftTutorialGB = async (userId: number) => {
-  try {
-    console.log(`📡 チュートリアルGB配布API呼び出し... UID: ${userId}`);
-    
-    // ❌ 修正前: fetch('http://localhost:8000/gb/gb', {
-    // ⭕ 修正後: 正しい部屋名「/gb/tutorial」に合わせる！
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/gb/tutorial`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ uid: userId })
-    });
-    
-    if (res.ok) console.log("🎁 GB配布成功！");
-  } catch (error) {
-    console.error("GB配布通信失敗:", error);
-  }
-};
+  // GB付与 API
+  const giftTutorialGB = async () => {
+    try {
+      console.log("📡 チュートリアルGB配布API呼び出し...");
+      await api.post('/gb/tutorial');
+      console.log("🎁 GB配布成功！");
+    } catch (error) {
+      console.error("GB配布通信失敗:", error);
+    }
+  };
+
+ // 📄 app/tutorial/_components/screens.tsx の中の handleSubmit を以下に差し替え
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!studentId || !password || !name) {
+    if (!email || !password || !name) {
       alert("全項目を入力してください！");
       return;
     }
     setIsLoading(true);
+
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/signup`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, grade, sid: studentId, pword: password })
+      // 1. Supabase Auth でサインアップ
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            name: name,
+            grade: grade,
+            email: email
+          }
+        }
       });
-      
-      if (res.ok) {
-        const data = await res.json();
-        console.log("📡 ユーザー登録成功:", data);
-        const userId = data.user_id || 1;
-        
-        await giftTutorialGB(userId);
-        alert("アカウント登録 ＆ 16GBの付与に成功しました！");
-        onRegisterSuccess(userId, name, grade);
-      } else {
-        alert("登録失敗: サーバー側でエラーが発生しました。");
+
+      if (authError) {
+        alert(`登録エラー: ${authError.message}`);
+        return;
       }
+
+      console.log("📡 Supabase サインアップ成功:", authData);
+
+      // ==========================================
+      // ❌ 【削除】 バックエンドの /auth/signup を叩く処理は消去しました
+      // ==========================================
+      
+      localStorage.setItem('loginUid', String(email));
+      
+      // 2. 16GBの付与 (バックエンド)
+      await giftTutorialGB();
+      alert("アカウント登録 ＆ 16GBの付与に成功しました！");
+      onRegisterSuccess(name, grade);
+
     } catch (error) {
-      console.error("通信エラー:", error);
-      alert("バックエンドサーバーに接続できません。");
+      console.error("登録プロセス中にエラーが発生しました:", error);
+      alert("接続に失敗しました。");
     } finally {
       setIsLoading(false);
     }
@@ -135,8 +134,9 @@ const giftTutorialGB = async (userId: number) => {
         <h2 className="text-2xl font-black text-center mb-6 tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">新規ユーザー登録</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">学籍番号</label>
-            <input type="text" value={studentId} onChange={(e) => setStudentId(e.target.value)} className="w-full px-4 py-2 bg-slate-950 border border-slate-700 rounded-xl focus:outline-none focus:border-cyan-500 text-white font-mono text-sm" placeholder="例: 12345678" />
+            {/* 🌟 表示を「メールアドレス」に変更 */}
+            <label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">メールアドレス</label>
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-4 py-2 bg-slate-950 border border-slate-700 rounded-xl focus:outline-none focus:border-cyan-500 text-white text-sm" placeholder="example@gmail.com" />
           </div>
           <div>
             <label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">パスワード</label>
@@ -148,7 +148,6 @@ const giftTutorialGB = async (userId: number) => {
           </div>
           <div>
             <label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">学年</label>
-            {/* 🎓 要望通り、選択肢を3つに修正 */}
             <select value={grade} onChange={(e) => setGrade(e.target.value)} className="w-full px-4 py-2 bg-slate-950 border border-slate-700 rounded-xl focus:outline-none focus:border-cyan-500 text-white appearance-none text-sm">
               <option value="学部4年">学部4年</option>
               <option value="修士1年">修士1年</option>
@@ -165,69 +164,65 @@ const giftTutorialGB = async (userId: number) => {
 }
 
 // ==========================================
-// 📄 3. ログイン画面 (LoginScreen) 🌟 新設！
+// 📄 3. ログイン画面 (LoginScreen)
 // ==========================================
 export function LoginScreen({
   onLoginSuccess
 }: {
   onLoginSuccess: () => void;
 }) {
-  const [studentId, setStudentId] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // 📄 Screens.tsx 内の LoginScreen の中身
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !password) {
+      alert("メールアドレスとパスワードを入力してください！");
+      return;
+    }
+    setIsLoading(true);
+    try {
+      // 🌟 Supabaseでのサインイン
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  if (!studentId || !password) {
-    alert("学籍番号とパスワードを入力してください！");
-    return;
-  }
-  setIsLoading(true);
-  try {
-    // ❌ 修正前: fetch('http://localhost:8000/auth/login', {
-    // ⭕ 修正後: バックエンドの「/signin」に名前を合わせる！
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/signin`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sid: studentId, pword: password })
-    });
-
-    if (res.ok) {
-      const data = await res.json();
-      console.log("📡 ログイン成功:", data);
-      
-      // ⚠️ 【おまけの超重要チェック！】
-      // もしパスワードが違っても、バックエンドは「200 OK」のまま 
-      // {"status": "error", "message": "..."} を返してくるコードになっているので、
-      // ここでそれを受け止められるようにしておくと完璧です！
-      if (data.status === "error") {
-        alert(data.message); // 「学生番号かパスワードが違います」と表示
+      if (error) {
+        alert(`ログイン失敗: ${error.message}`);
         return;
       }
 
+      console.log("📡 Supabase ログイン成功:", data);
+      
+      localStorage.setItem('loginUid', String(email));
       alert("ログインしました！");
-      onLoginSuccess();
-    } else {
-      alert("サーバーエラーが発生しました。");
-    }
-  } catch (error) {
-    console.error("通信エラー:", error);
-    alert("バックエンドサーバーに接続できません。");
-  } finally {
-    setIsLoading(false);
-  }
-};
 
+      // 🌟【重要修正】状態切り替えではなく、URLを直接書き換えてダッシュボードへ強制ジャンプ
+      if (typeof window !== "undefined") {
+        // あなたのアプリのダッシュボードのURLパスに合わせてください（例: "/dashboard"）
+        window.location.href = "/dashboard"; 
+      }
+      
+      // onLoginSuccess(); // 👈 古い遷移方法はコメントアウトします
+
+    } catch (error) {
+      console.error("通信エラー:", error);
+      alert("サーバーに接続できません。");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
   return (
     <div className="relative w-full h-full bg-slate-900 flex flex-col items-center justify-center p-6 text-white select-none">
       <div className="w-full max-w-sm bg-slate-800/90 p-6 rounded-2xl border border-slate-700 shadow-2xl backdrop-blur-md">
         <h2 className="text-2xl font-black text-center mb-6 tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-500">ログイン</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">学籍番号</label>
-            <input type="text" value={studentId} onChange={(e) => setStudentId(e.target.value)} className="w-full px-4 py-2 bg-slate-950 border border-slate-700 rounded-xl focus:outline-none focus:border-emerald-500 text-white font-mono text-sm" placeholder="例: 12345678" />
+            <label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">メールアドレス</label>
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-4 py-2 bg-slate-950 border border-slate-700 rounded-xl focus:outline-none focus:border-emerald-500 text-white text-sm" placeholder="example@gmail.com" />
           </div>
           <div>
             <label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">パスワード</label>
