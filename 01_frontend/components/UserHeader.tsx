@@ -1,46 +1,70 @@
-// components/UserHeader.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
-import { api } from '../app/auth/api'; // 👈 componentsと同じ高さにあるapp/auth/apiを参照
+import { api } from '../app/auth/api'; // 👈 パスはそのまま維持
 
-export default function UserHeader() {
+// 🌟 親からユーザーデータを受け取れるように Props の型を定義
+interface UserHeaderProps {
+  username?: string;
+  userGb?: number | null;
+}
+
+export default function UserHeader({ username: propUsername, userGb: propGb }: UserHeaderProps) {
   const [username, setUsername] = useState('読み込み中...');
   const [userGb, setUserGb] = useState<number | null>(null);
 
+  // 1️⃣ 親コンポーネント（GachaPage等）から Props が更新されたら、ヘッダーの表示も同期する
   useEffect(() => {
-    // 1️⃣ まずはローカルストレージ（キャッシュ）から即座に表示（チラつき防止）
+    if (propUsername !== undefined) {
+      setUsername(propUsername);
+    }
+  }, [propUsername]);
+
+  useEffect(() => {
+    if (propGb !== undefined) {
+      setUserGb(propGb);
+    }
+  }, [propGb]);
+
+  // 2️⃣ 既存の「GET /users/me」取得処理（Propsがない場合のみ自律動作）
+  useEffect(() => {
+    // 💡 重要：親からPropsが渡されている場合は、このコンポーネントでのAPI呼び出しをスキップする（二重呼び出し防止）
+    if (propUsername !== undefined && propGb !== undefined && propGb !== null) {
+      return;
+    }
+
+    // キャッシュ（ローカルストレージ）から即座に表示
     const storedUsername = localStorage.getItem('username');
     const storedGb = localStorage.getItem('userGb');
 
-    if (storedUsername) setUsername(storedUsername);
-    if (storedGb) setUserGb(Number(storedGb));
+    if (storedUsername && propUsername === undefined) setUsername(storedUsername);
+    if (storedGb && propGb === undefined) setUserGb(Number(storedGb));
 
-    // 2️⃣ 既存の「GET /users/me」を叩いて最新情報を取得し同期
     const fetchUserData = async () => {
       try {
-        const response = await api.get('/users/me'); // 👈 routerのprefix「/users」に合わせる
+        const response = await api.get('/users/me');
         
         if (response.status === 200 && response.data && response.data.status === "success") {
-          const { name, gb } = response.data.user; // 👈 レスポンスの user から抽出
+          const { name, gb } = response.data.user;
           
-          setUsername(name);
-          setUserGb(gb);
-          
-          // 次回表示のためにローカルストレージも最新状態に更新
-          localStorage.setItem('username', name);
-          localStorage.setItem('userGb', String(gb));
+          if (propUsername === undefined) {
+            setUsername(name);
+            localStorage.setItem('username', name);
+          }
+          if (propGb === undefined) {
+            setUserGb(gb);
+            localStorage.setItem('userGb', String(gb));
+          }
         }
       } catch (error) {
         console.error('❌ ユーザー情報の取得に失敗しました:', error);
-        // 万が一通信エラーが起きても画面が壊れないようにフォールバック
-        if (!storedUsername) setUsername('ISDL メンバー');
-        if (!storedGb) setUserGb(0);
+        if (!storedUsername && propUsername === undefined) setUsername('ISDL メンバー');
+        if (!storedGb && propGb === undefined) setUserGb(0);
       }
     };
 
     fetchUserData();
-  }, []);
+  }, [propUsername, propGb]); // Propsの有無を監視
 
   return (
     <div style={{
