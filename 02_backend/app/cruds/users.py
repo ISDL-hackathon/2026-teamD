@@ -18,7 +18,7 @@ def create_user_profile(auth_id, name, grade, subject_uid=None):
 
     except Exception as e:
         print(f"プロフィール登録失敗: {e}")
-        return False
+        raise
     
 def get_user_by_sid(sid: str) -> dict | None:
     """
