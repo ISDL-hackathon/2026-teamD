@@ -213,52 +213,6 @@ def get_character_profile_db(uid, cid):
     except Exception as e:
         print(f"キャラクタープロフィール取得失敗: {e}")
         return False
-    
-def get_owned_character_db(uid):
-    try:
-        response = (
-            supabase
-            .table("user_character")
-            .select(
-                """
-                cid,
-                cnt,
-                characters!user_character_cid_fkey(
-                    cid,
-                    name,
-                    grade,
-                    img1,
-                    rare,
-                    prefix,
-                    vc_gacha,
-                    vc_home,
-                    vc_quote_gacha,
-                    vc_quote_home
-                )
-                """
-            )
-            .eq("uid", uid)
-            .execute()
-        )
-
-        if response.data:
-            for item in response.data:
-                char_info = item.get("characters")
-
-                if char_info:
-                    prefix = char_info.get("prefix") or ""
-                    name = char_info.get("name") or ""
-                    char_info["name"] = f"{prefix}{name}"
-
-        return response.data
-
-    except Exception as e:
-        print(f"所持キャラクター取得失敗: {e}")
-        return False
-
-    except Exception as e:
-        print(f"キャラクタープロフィール取得失敗: {e}")
-        return False
    
 def update_home_character(uid, cid):
     try:
@@ -304,20 +258,27 @@ def get_character_info(cid):
         result = (
             supabase
             .table("characters")
-            .select("name, img1, prefix")  # 🌟 prefixも追加
+            .select(
+                """
+                name,
+                img1,
+                prefix,
+                vc_home,
+                vc_quote_home
+                """
+            )
             .eq("cid", cid)
             .single()
             .execute()
         )
 
-        # 🌟 prefixとnameを結合させる処理を追加
         if result.data:
             prefix = result.data.get("prefix") or ""
             name = result.data.get("name") or ""
-            result.data["name"] = f"{prefix}{name}"  # 合体！
+            result.data["name"] = f"{prefix}{name}"
 
         return result.data
 
     except Exception as e:
-        print(f"キャラ名取得失敗: {e}")
+        print(f"キャラクター情報取得失敗: {e}")
         return None
