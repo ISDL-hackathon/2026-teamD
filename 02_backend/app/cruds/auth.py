@@ -49,7 +49,6 @@ def get_current_user(
         raise _unauthorized("ログインが必要です")
 
     access_token = credentials.credentials
-    print(f"🔑 [DEBUG] フロントからトークンが届きました: {access_token[:15]}...")
 
     try:
         auth_response = supabase.auth.get_user(access_token)

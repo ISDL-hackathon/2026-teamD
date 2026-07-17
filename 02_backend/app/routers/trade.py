@@ -103,7 +103,11 @@ def trade_scan_qr(request_data: TradingScanRequest, current_user=Depends(get_cur
     try:
         tar_uid = current_user["uid"]
         trade_id = request_data.trade_id
-        add_tar_uid(tar_uid, trade_id)
+        if not add_tar_uid(tar_uid, trade_id):
+            raise HTTPException(
+                status_code=400,
+                detail="自分自身のQRコード、または無効なQRコードです",
+            )
         tar_name = get_name(tar_uid)
         tar_grade = get_grade(tar_uid)
         print(f"交換する相手の名前は{tar_name}，学年は{tar_grade}ですか？")
@@ -111,9 +115,11 @@ def trade_scan_qr(request_data: TradingScanRequest, current_user=Depends(get_cur
             "name": tar_name,
             "grade": tar_grade
         }
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"相手を読み込むこと失敗: {e}")
-        return False    
+        raise HTTPException(status_code=400, detail="交換相手の読み込みに失敗しました")
 
 @router.post("/allow")
 def trade_flag_true(request_data: TradingAllowRequest, current_user=Depends(get_current_user)):

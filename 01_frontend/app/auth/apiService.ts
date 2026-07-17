@@ -76,8 +76,12 @@ export const gachaService = {
 export const gbService = {
   /** 現在のGB残高などの情報取得 (Bodyなし) */
   getGbInfo: async () => {
-    const res = await api.post('/gb/gb');
-    return res.data;
+    const res = await api.get('/users/me');
+    // レスポンスの user の中身を、直下の階層に展開して返す
+    return {
+      ...res.data.user, // uid, name, grade, gb がすべて直下に入ります
+      status: res.data.status
+    };
   },
 };
 

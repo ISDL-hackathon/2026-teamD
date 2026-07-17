@@ -8,14 +8,13 @@ import { api } from "../../auth/api";
 
 type GachaStep = "BASE" | "CONFIRM" | "VIDEO" | "RESULT_IMAGE" | "FINAL_SUMMARY";
 
-// ⭐️ キャラクターの型定義（rare を追加しました）
 interface DrawnCharacter {
   cid: number;
   name: string;
   prefix?: string;
   img1?: string;
   quote?: string;
-  rare?: string; // 🌟 レアリティ表示用のプロパティを追加
+  rare?: string;
 }
 
 const GACHA_COST_PER_DRAW = 16;
@@ -29,37 +28,47 @@ export default function GachaPage() {
   const [isMoreOpen, setIsMoreOpen] = useState(false);
   const [loading, setLoading] = useState(false); 
   
-  // ユーザーの現在の所持GB
+  // 🌟 ユーザー名と所持GBのステート
+  const [username, setUsername] = useState<string>("読み込み中...");
   const [userGb, setUserGb] = useState<number | null>(null);
 
-  // ガチャで当たったキャラたちを格納する配列
   const [drawnCharacters, setDrawnCharacters] = useState<DrawnCharacter[]>([]);
 
-  // 最新のGBを取得する（ネスト構造対応版）
+  // 1️⃣ マウント時にローカルストレージから即時にキャッシュを読み込んでチラつきを防止
   useEffect(() => {
-    const fetchUserGb = async () => {
+    const storedUsername = localStorage.getItem('username');
+    const storedGb = localStorage.getItem('userGb');
+    if (storedUsername) setUsername(storedUsername);
+    if (storedGb) setUserGb(Number(storedGb));
+  }, []);
+
+  // 2️⃣ 最新のユーザー情報・GBを同期する（stepがBASEになったときだけ発火）
+  useEffect(() => {
+    const fetchUserData = async () => {
       try {
         const response = await api.get("/users/me");
         console.log("✏️ [DEBUG] GET /users/me response:", response.data);
         
-        if (response.data) {
-          const userObj = response.data.user; 
-          const rawGb = userObj ? userObj.gb : response.data.gb; 
-          
-          if (rawGb !== undefined && rawGb !== null) {
-            const gbNum = Number(rawGb); 
-            if (!isNaN(gbNum)) {
-              setUserGb(gbNum);
-              console.log(`🎉 所持GBの同期に成功しました！: ${gbNum} GB`);
-              return;
-            }
+        if (response.data && response.data.status === "success" && response.data.user) {
+          const { name, gb } = response.data.user;
+          const gbNum = Number(gb);
+
+          if (name) {
+            setUsername(name);
+            localStorage.setItem('username', name);
           }
 
-          const keys = userObj ? Object.keys(userObj).join(", ") : "なし";
+          if (!isNaN(gbNum)) {
+            setUserGb(gbNum);
+            localStorage.setItem('userGb', String(gbNum));
+            console.log(`🎉 所持GBの同期に成功しました！: ${gbNum} GB`);
+          }
+        } else {
+          // 異常系ハンドリング
+          const keys = response.data?.user ? Object.keys(response.data.user).join(", ") : "なし";
           alert(
             `⚠️【警告】userデータは届きましたが、その中に 'gb' がありません。\n\n` +
-            `userオブジェクト内のキー一覧: [ ${keys} ]\n\n` +
-            `※ 'gb' が無い場合は、FastAPI側の response_model 等で gb が除外されている可能性があります。`
+            `userオブジェクト内のキー一覧: [ ${keys} ]`
           );
         }
       } catch (error: any) {
@@ -68,7 +77,7 @@ export default function GachaPage() {
     };
 
     if (step === "BASE") {
-      fetchUserGb();
+      fetchUserData();
     }
   }, [step]);
 
@@ -159,7 +168,6 @@ export default function GachaPage() {
   const confirmImg = gachaType === 1 ? "/gatya1_1.png" : "/gatya8_1.png";
   const videoSrc = gachaType === 1 ? "/gatya1.mp4" : "/gatya8.mp4";
 
-  // 現在表示中のキャラクターオブジェクト
   const currentCharacter = drawnCharacters[resultImageIndex];
 
   return (
@@ -172,8 +180,9 @@ export default function GachaPage() {
             className="relative h-full w-full bg-cover bg-center"
             style={{ backgroundImage: "url('/gatya-home.png')" }}
           >
+            {/* 🌟 修正ポイント: 親の最新Stateをそのまま Props として渡します */}
             <div className="absolute top-0 left-0 w-full z-20">
-              <UserHeader />
+              <UserHeader username={username} userGb={userGb} />
             </div>
 
             <button
@@ -273,12 +282,11 @@ export default function GachaPage() {
           </div>
         )}
 
-        {/* --- STEP 5: 🌟 最終まとめ（ポップアップ一覧形式へ完全リニューアル） --- */}
+        {/* --- STEP 5: 最終まとめ --- */}
         {step === "FINAL_SUMMARY" && (
           <div className="absolute inset-0 bg-black/80 flex items-center justify-center p-6 z-30 animate-fade-in">
             <div className="w-full max-h-[75%] bg-gradient-to-b from-[#1a1a1c] to-[#0a0a0c] border border-yellow-500/30 rounded-2xl shadow-[0_0_25px_rgba(234,179,8,0.25)] p-5 flex flex-col">
               
-              {/* ヘッダーエリア */}
               <div className="text-center mb-4 border-b border-white/10 pb-3">
                 <h3 className="text-lg font-black text-yellow-400 tracking-widest">
                   GACHA RESULT
@@ -288,19 +296,16 @@ export default function GachaPage() {
                 </p>
               </div>
 
-              {/* スクロール可能なキャラクターリスト */}
               <div className="flex-1 overflow-y-auto space-y-2.5 pr-1">
                 {drawnCharacters.map((char, index) => (
                   <div 
                     key={`${char.cid}-${index}`}
                     className="flex items-center gap-3 bg-white/5 border border-white/5 rounded-xl p-2.5 hover:bg-white/10 transition-colors"
                   >
-                    {/* 左側: レアリティバッジ（APIから渡らない場合は仮で"SSR"を表示） */}
                     <span className="inline-block text-[9px] font-black px-1.5 py-0.5 rounded bg-gradient-to-r from-yellow-400 to-amber-500 text-black shadow-sm tracking-wide shrink-0">
                       {char.rare || "SSR"}
                     </span>
 
-                    {/* 中央: prefix + name */}
                     <div className="flex-1 truncate">
                       <p className="text-white font-black text-sm truncate">
                         {char.prefix ? (
@@ -312,7 +317,6 @@ export default function GachaPage() {
                       </p>
                     </div>
                     
-                    {/* 右側: ミニ顔グラフィック（演出用） */}
                     {char.img1 ? (
                       <img 
                         src={char.img1} 
@@ -326,7 +330,6 @@ export default function GachaPage() {
                 ))}
               </div>
 
-              {/* 決定ボタン */}
               <button
                 onClick={handleFinalSummaryTap}
                 className="w-full mt-5 bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-400 hover:to-amber-400 text-black font-black py-3 rounded-xl shadow-lg active:scale-95 transition-all text-center text-xs tracking-widest"
