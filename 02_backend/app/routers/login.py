@@ -34,4 +34,8 @@ def login(request: LoginRequest):
         }
 
     except Exception as e:
+        import traceback
+        traceback.print_exc()
+        print(type(e))
+        print(e)
         raise HTTPException(status_code=401, detail=str(e))

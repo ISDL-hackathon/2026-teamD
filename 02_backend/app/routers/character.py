@@ -67,9 +67,13 @@ def set_home_character(request_data: HomeCharacterRequest, current_user=Depends(
 
     name = char_info["name"]
     img1 = char_info["img1"]
+    vc_home = char_info["vc_home"]
+    vc_quote_home = char_info["vc_quote_home"]
 
     return {
         "cid": cid,
         "name": name,
-        "img1": img1
+        "img1": img1,
+        "vc_home" : vc_home,
+        "vc_quote_home" : vc_quote_home
     }

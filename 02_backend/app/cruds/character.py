@@ -140,7 +140,9 @@ def get_owned_character_db(uid):
                     grade,
                     img1,
                     rare,
-                    prefix
+                    prefix,
+                    vc_gacha,
+                    vc_quote_gacha
                 )
             """)
             .eq("uid", uid)
@@ -181,7 +183,9 @@ def get_character_profile_db(uid, cid):
                     lab,
                     birth,
                     img1,
-                    prefix
+                    prefix,
+                    vc_gacha,
+                    vc_quote_gacha                    
                 )
              """)
             .eq("uid", uid)
@@ -247,7 +251,7 @@ def get_character_info(cid):
         result = (
             supabase
             .table("characters")
-            .select("name, img1, prefix")  # 🌟 prefixも追加
+            .select("name, img1, prefix, vc_home, vc_quote_home")  # 🌟 prefixも追加
             .eq("cid", cid)
             .single()
             .execute()
