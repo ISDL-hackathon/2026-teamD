@@ -213,7 +213,7 @@ def get_character_profile_db(uid, cid):
     except Exception as e:
         print(f"キャラクタープロフィール取得失敗: {e}")
         return False
-    
+   
 def update_home_character(uid, cid):
     try:
         # 所持確認
