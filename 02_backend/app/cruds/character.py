@@ -131,7 +131,8 @@ def get_owned_character_db(uid):
         response = (
             supabase
             .table("user_character")
-            .select("""
+            .select(
+                """
                 cid,
                 cnt,
                 characters!user_character_cid_fkey(
@@ -142,37 +143,39 @@ def get_owned_character_db(uid):
                     rare,
                     prefix,
                     vc_gacha,
-                    vc_quote_gacha
+                    vc_home,
+                    vc_quote_gacha,
+                    vc_quote_home
                 )
-            """)
+                """
+            )
             .eq("uid", uid)
             .execute()
         )
 
-        # 🌟 prefixとnameを結合させる処理を追加
         if response.data:
             for item in response.data:
                 char_info = item.get("characters")
+
                 if char_info:
                     prefix = char_info.get("prefix") or ""
                     name = char_info.get("name") or ""
-                    char_info["name"] = f"{prefix}{name}"  # 合体！
+                    char_info["name"] = f"{prefix}{name}"
 
         return response.data
 
     except Exception as e:
         print(f"所持キャラクター取得失敗: {e}")
         return False
-    
-# uidからキャラクターデータを返す
 def get_character_profile_db(uid, cid):
     try:
         response = (
             supabase
             .table("user_character")
-            .select("""
+            .select(
+                """
                 cid,
-                characters (
+                characters(
                     name,
                     grade,
                     quote,
@@ -185,26 +188,30 @@ def get_character_profile_db(uid, cid):
                     img1,
                     prefix,
                     vc_gacha,
-                    vc_quote_gacha                    
+                    vc_home,
+                    vc_quote_gacha,
+                    vc_quote_home
                 )
-             """)
+                """
+            )
             .eq("uid", uid)
             .eq("cid", cid)
             .execute()
         )
-        
-        # 🌟 prefixとnameを結合させる処理を追加
+
         if response.data:
             for item in response.data:
                 char_info = item.get("characters")
+
                 if char_info:
                     prefix = char_info.get("prefix") or ""
                     name = char_info.get("name") or ""
-                    char_info["name"] = f"{prefix}{name}"  # 合体！
+                    char_info["name"] = f"{prefix}{name}"
 
         return response.data
+
     except Exception as e:
-        print(f"所持キャラクター取得失敗: {e}")
+        print(f"キャラクタープロフィール取得失敗: {e}")
         return False
 
 def update_home_character(uid, cid):
@@ -251,7 +258,7 @@ def get_character_info(cid):
         result = (
             supabase
             .table("characters")
-            .select("name, img1, prefix, vc_home, vc_quote_home")  # 🌟 prefixも追加
+            .select("name, img1, prefix, vc_quote_home, vc_quote_home")  # 🌟 prefixも追加
             .eq("cid", cid)
             .single()
             .execute()
