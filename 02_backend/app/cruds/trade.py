@@ -79,10 +79,12 @@ def get_trade_id(uid):
             .select("trade_id")
             .or_(f"my_uid.eq.{uid},tar_uid.eq.{uid}")
             .eq("is_trade", False)
+            .order("trade_id", descending=True)  # 👈【追加】IDの大きい順（最新順）に並び替える
+            .limit(1)                           # 👈【追加】最新の1件だけを取得する
             .execute()
         )
 
-        print(result.data)
+        print("取得した最新のtrade_idデータ:", result.data)
 
         if not result.data:
             return None
