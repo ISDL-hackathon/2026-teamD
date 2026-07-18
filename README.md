@@ -31,7 +31,7 @@
 | Audio | Web Audio API |
 
 ## 📂 ディレクトリ構成
-'''text
+'''
 2026-TEAMD/  
 ├── 00_docs/                     # 設計書・ドキュメント類  
 │  
