@@ -63,9 +63,9 @@ def get_character_from_user(uid, cnt):
     print("ガチャで排出実装")
     try:        
         #デモ
-        chosen_cid=demo_get_character(cnt)
+        #chosen_cid=demo_get_character(cnt)
         # 本番の確率テーブルからcidを選択
-        #chosen_cid = get_character_rate(cnt)
+        chosen_cid = get_character_rate(cnt)
         if not chosen_cid:
             return False
 
