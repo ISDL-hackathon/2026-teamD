@@ -30,28 +30,32 @@
 | HTTP Client | Axios |
 | Audio | Web Audio API |
 
-📂 ディレクトリ構成
+## 📂 ディレクトリ構成
 2026-TEAMD/
-├── 00_docs/                  # 設計書・ドキュメント類
-├── 01_frontend/              # フロントエンド（Next.js）
-│   ├── app/
-│   │   ├── auth/
-│   │   │   └── api.ts        # Axios設定・認証インターセプター
-│   │   ├── dashboard/        # ダッシュボード画面
-│   │   └── main/             # メイン画面
-│   ├── components/           # 共通UIコンポーネント
-│   ├── public/               # 画像・音声・動画アセット
-│   └── .env.local            # フロントエンド環境変数
+├── 00_docs/ # 設計書・ドキュメント類
 │
-└── 02_backend/               # バックエンド（FastAPI）
-    ├── app/
-    │   ├── main.py           # FastAPI起動・CORS設定
-    │   ├── routers/          # APIルーティング定義
-    │   ├── cruds/            # データベース操作（CRUD）
-    │   ├── gemini.py         # Gemini API連携ロジック
-    │   └── qrcode.py         # QRコード生成・OpenCV読み取り処理
-    ├── qr_img/               # 生成されたQRコード画像の保存先
-    └── .env                  # バックエンド環境変数
+├── 01_frontend/ # フロントエンド（Next.js）
+│ ├── app/
+│ │ ├── auth/
+│ │ │ └── api.ts # Axios設定・認証インターセプター
+│ │ ├── dashboard/ # ダッシュボード画面
+│ │ └── main/ # メイン画面
+│ │
+│ ├── components/ # 共通UIコンポーネント
+│ ├── public/ # 画像・音声・動画アセット
+│ └── .env.local # フロントエンド環境変数
+│
+└── 02_backend/ # バックエンド（FastAPI）
+├── app/
+│ ├── main.py # FastAPI起動・CORS設定
+│ ├── routers/ # APIルーティング定義
+│ ├── cruds/ # データベース操作（CRUD）
+│ ├── gemini.py # Gemini API連携ロジック
+│ └── qrcode.py # QRコード生成・読み取り処理
+│
+├── qr_img/ # 生成したQRコード画像の保存先
+└── .env # バックエンド環境変数
+
 ## 🚀 セットアップ
 
 リポジトリをクローンし、バックエンドとフロントエンドを**それぞれ別ターミナル**で起動してください。
