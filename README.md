@@ -33,26 +33,26 @@
 ## 📂 ディレクトリ構成
 '''text
 2026-TEAMD/  
-├── 00_docs/ # 設計書・ドキュメント類  
+├── 00_docs/                     # 設計書・ドキュメント類  
 │  
-├── 01_frontend/ # フロントエンド（Next.js）  
+├── 01_frontend/                 # フロントエンド（Next.js）  
 │ ├── app/  
 │ │ ├── auth/  
-│ │ │ └── api.ts # Axios設定・認証インターセプター  
-│ │ ├── dashboard/ # ダッシュボード画面  
-│ │ └── main/ # メイン画面  
+│ │ │ └── api.ts                 # Axios設定・認証インターセプター  
+│ │ ├── dashboard/               # ダッシュボード画面  
+│ │ └── main/                    # メイン画面  
 │ │  
-│ ├── components/ # 共通UIコンポーネント  
-│ ├── public/ # 画像・音声・動画アセット  
-│ └── .env.local # フロントエンド環境変数  
+│ ├── components/                # 共通UIコンポーネント  
+│ ├── public/                    # 画像・音声・動画アセット  
+│ └── .env.local                 # フロントエンド環境変数  
 │  
-└── 02_backend/ # バックエンド（FastAPI）  
+└── 02_backend/                  # バックエンド（FastAPI）  
 ├── app/  
-│ ├── main.py # FastAPI起動・CORS設定  
-│ ├── routers/ # APIルーティング定義  
-│ ├── cruds/ # データベース操作（CRUD）  
-│ ├── gemini.py # Gemini API連携ロジック  
-│ └── qrcode.py # QRコード生成・読み取り処理  
+│ ├── main.py                    # FastAPI起動・CORS設定  
+│ ├── routers/                   # APIルーティング定義  
+│ ├── cruds/                     # データベース操作（CRUD）  
+│ ├── gemini.py                  # Gemini API連携ロジック  
+│ └── qrcode.py                  # QRコード生成・読み取り処理  
 │  
 ├── qr_img/ # 生成したQRコード画像の保存先  
 └── .env # バックエンド環境変数  
