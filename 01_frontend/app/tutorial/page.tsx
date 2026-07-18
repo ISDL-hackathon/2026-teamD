@@ -1,438 +1,179 @@
-// app/tutorial/page.tsx
-"use client";
+'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
-import TitleScreen, { RegisterScreen, LoginScreen } from "./_components/screens";
-import { api } from '../auth/api';
+import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
+// 提供されたコンポーネントをインポート（パスは実際の環境に合わせて調整してください）
+import TitleScreen, { RegisterScreen, LoginScreen } from './_components/screens';
 
-type TutorialSlide = {
-  mediaSrc: string;
-  audioSrc: string | null;
-};
+type ScreenMode = 'TITLE' | 'REGISTER' | 'LOGIN' | 'STORY';
 
-type TutorialGachaResponse = {
-  status?: string;
-  message?: string;
-  name?: string;
-};
+export default function TutorialPage() {
+  const router = useRouter();
+  const [mode, setMode] = useState<ScreenMode>('TITLE');
+  const [currentStep, setCurrentStep] = useState(0);
+  const [grade, setGrade] = useState('学部4年'); // 登録画面から引き継ぐ学年
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-export default function GameFlow() {
-  const [step, setStep] = useState<'TITLE' | 'REGISTER' | 'LOGIN' | 'SLIDESHOW' | 'GACHA_RESULT'>('TITLE');
-  const [slideIndex, setSlideIndex] = useState(0);
-  const [grade, setGrade] = useState('学部4年');
-  const [mediaError, setMediaError] = useState<string | null>(null);
-  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
-  const [audioNeedsGesture, setAudioNeedsGesture] = useState(false);
-  const audioRef = useRef<HTMLAudioElement>(null);
-  const audioAutoplayRef = useRef(true);
+  // ------------------------------------------
+  // 🗺️ 1. 画像と音声の完全マッピング定義（パスを /audio/tutorial に修正）
+  // ------------------------------------------
+  const getSlideInfo = (stepIndex: number, userGrade: string) => {
+    // 📁 音声ファイルが配置されている正確なパス
+    const AUDIO_DIR = '/audio/tutorial';
 
-  const [gachaCharacter, setGachaCharacter] = useState<TutorialGachaResponse | null>(null);
-  const [isGachaLoading, setIsGachaLoading] = useState(false);
+    // 前半：tut1 ~ tut4 (音声 1 ~ 4)
+    if (stepIndex >= 0 && stepIndex <= 3) {
+      return { type: 'image', src: `/tut${stepIndex + 1}.png`, audio: `${AUDIO_DIR}/${stepIndex + 1}.m4a` };
+    }
 
-  // 🌟 タップした場所の座標を保存する状態
-  const [tapEffects, setTapEffects] = useState<{ id: number; x: number; y: number }[]>([]);
+    // 分岐：tut5 (学部4年) または tut6 (修士1年/2年)
+    if (stepIndex === 4) {
+      const isU4 = userGrade.includes('4') || userGrade.toUpperCase().includes('U4');
+      return {
+        type: 'image',
+        src: isU4 ? '/tut5.png' : '/tut6.png',
+        audio: isU4 ? `${AUDIO_DIR}/5-u4.m4a` : `${AUDIO_DIR}/5-m1m2.m4a`
+      };
+    }
 
-  const tutorialSlides = useMemo<TutorialSlide[]>(() => {
-    const gradeSlide = grade.startsWith('修士')
-      ? { mediaSrc: '/tut6.png', audioSrc: '/audio/tutorial/5-m1m2.m4a' }
-      : { mediaSrc: '/tut5.png', audioSrc: '/audio/tutorial/5-u4.m4a' };
+    // 中盤：tut7 ~ tut14 (音声 6 ~ 13) ※11.m4a は 11-english.m4a
+    if (stepIndex >= 5 && stepIndex <= 12) {
+      const tutNum = stepIndex + 2;     // step5 -> tut7, step12 -> tut14
+      const audioNum = stepIndex + 1;   // step5 -> 6.m4a, step12 -> 13.m4a
+      const audioName = audioNum === 11 ? '11-english' : String(audioNum);
+      return { type: 'image', src: `/tut${tutNum}.png`, audio: `${AUDIO_DIR}/${audioName}.m4a` };
+    }
 
-    return [
-      { mediaSrc: '/tut1.png', audioSrc: '/audio/tutorial/1.m4a' },
-      { mediaSrc: '/tut2.png', audioSrc: '/audio/tutorial/2.m4a' },
-      { mediaSrc: '/tut3.png', audioSrc: '/audio/tutorial/3.m4a' },
-      { mediaSrc: '/tut4.png', audioSrc: '/audio/tutorial/4.m4a' },
-      gradeSlide,
-      { mediaSrc: '/tut7.png', audioSrc: '/audio/tutorial/6.m4a' },
-      { mediaSrc: '/tut8.png', audioSrc: '/audio/tutorial/7.m4a' },
-      { mediaSrc: '/tut9.png', audioSrc: '/audio/tutorial/8.m4a' },
-      { mediaSrc: '/tut10.png', audioSrc: '/audio/tutorial/9.m4a' },
-      { mediaSrc: '/tut11.png', audioSrc: '/audio/tutorial/10.m4a' },
-      { mediaSrc: '/tut12.png', audioSrc: '/audio/tutorial/11-english.m4a' },
-      { mediaSrc: '/tut13.png', audioSrc: '/audio/tutorial/12.m4a' },
-      { mediaSrc: '/tut14.png', audioSrc: '/audio/tutorial/13.m4a' },
-      { mediaSrc: '/tut15.png', audioSrc: '/audio/tutorial/14.m4a' },
-      { mediaSrc: '/tut_gacha.mp4', audioSrc: '/audio/tutorial/15.m4a' },
-      { mediaSrc: '/tut17.png', audioSrc: '/audio/tutorial/16.m4a' },
-      { mediaSrc: '/tut18.png', audioSrc: '/audio/tutorial/17.m4a' },
-      { mediaSrc: '/tut19.png', audioSrc: '/audio/tutorial/18.m4a' },
-      { mediaSrc: '/tut20.png', audioSrc: '/audio/tutorial/kuranuki-v2.m4a' },
-      // 00_docs の tutorial フォルダには、この画面用の音声素材がありません。
-      { mediaSrc: '/tut21.png', audioSrc: null },
-      { mediaSrc: '/tut22.png', audioSrc: '/audio/tutorial/19.m4a' },
-    ];
-  }, [grade]);
+    // 🎬 動画フェーズ（音声は絶対に流さない）
+    if (stepIndex === 13) {
+      return { type: 'video', src: '/exchange.mp4', audio: null };
+    }
 
-  const currentSlide = tutorialSlides[slideIndex];
-  const currentPath = currentSlide?.mediaSrc;
-  const currentAudioPath = currentSlide?.audioSrc;
-  const isMp4 = currentPath?.endsWith('.mp4');
+    // 後半：tut17 ~ tut22 (音声 14 ~ 19)
+    if (stepIndex >= 14 && stepIndex <= 19) {
+      const tutNum = stepIndex + 3;     // step14 -> tut17, step19 -> tut22
+      const audioNum = stepIndex;       // step14 -> 14.m4a, step19 -> 19.m4a
+      return { type: 'image', src: `/tut${tutNum}.png`, audio: `${AUDIO_DIR}/${audioNum}.m4a` };
+    }
 
+    return null;
+  };
+
+  const TOTAL_STEPS = 20;
+  const currentSlide = getSlideInfo(currentStep, grade);
+
+  // ------------------------------------------
+  // 🔊 2. 音声の排他制御・動画割り込み対策
+  // ------------------------------------------
   useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    audio.pause();
-    audio.currentTime = 0;
-    setIsAudioPlaying(false);
-    setAudioNeedsGesture(false);
-
-    if (step !== 'SLIDESHOW' || !currentAudioPath || !audioAutoplayRef.current) return;
-
-    audio.load();
-    void audio.play().catch(() => {
-      // Chrome/Safari が音声の自動再生を止めた場合は、再生ボタンを案内する。
-      setIsAudioPlaying(false);
-      setAudioNeedsGesture(true);
-    });
-
-    return () => {
-      audio.pause();
-    };
-  }, [currentAudioPath, step]);
-
-  const handleAudioToggle = (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.stopPropagation();
-    const audio = audioRef.current;
-    if (!audio || !currentAudioPath) return;
-
-    if (isAudioPlaying) {
-      audioAutoplayRef.current = false;
-      audio.pause();
+    // STORY（紙芝居）モード以外、またはスライド情報がない時は音声を停止して終了
+    if (mode !== 'STORY' || !currentSlide) {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+        audioRef.current = null;
+      }
       return;
     }
 
-    audioAutoplayRef.current = true;
-    setAudioNeedsGesture(false);
-    audio.currentTime = 0;
-    void audio.play().catch(() => {
-      setAudioNeedsGesture(true);
+    // 🛑 新しいステップに来たら、前の音声を即座に完全停止
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      audioRef.current = null;
+    }
+
+    // 動画ステップ、または音声が定義されていない場合は何も再生しない
+    if (currentSlide.type === 'video' || !currentSlide.audio) {
+      return;
+    }
+
+    // 新しい音声オブジェクトを作成して再生
+    const audio = new Audio(currentSlide.audio);
+    audioRef.current = audio;
+
+    audio.play().catch((err) => {
+      console.warn("音声の再生に失敗しました:", err);
     });
-  };
 
-  const handleSlideTap = (e: React.MouseEvent<HTMLDivElement>) => {
-    // 1. タップ演出の生成処理
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    // クリーンアップ
+    return () => {
+      audio.pause();
+      audio.currentTime = 0;
+    };
+  }, [currentStep, mode, grade, currentSlide]);
 
-    const newEffect = { id: Date.now(), x, y };
-    setTapEffects(prev => [...prev, newEffect]);
-
-    setTimeout(() => {
-      setTapEffects(prev => prev.filter(effect => effect.id !== newEffect.id));
-    }, 500);
-
-    // 2. 既存の画面遷移処理
-    if (isMp4) return;
-    setMediaError(null);
-
-    if (slideIndex < tutorialSlides.length - 1) {
-      setSlideIndex(slideIndex + 1);
+  // ------------------------------------------
+  // 🕹️ 3. ナビゲーション処理（全画面タップ）
+  // ------------------------------------------
+  const handleNext = () => {
+    if (currentStep < TOTAL_STEPS - 1) {
+      setCurrentStep((prev) => prev + 1);
     } else {
-      alert("チュートリアルが全て完了しました！");
-      window.location.href = '/dashboard';
+      router.push('/dashboard');
     }
   };
 
-  // 🌟 ガチャ呼び出し時に Body は送信しないように変更！
-  const handleVideoEnded = async () => {
-    setMediaError(null);
-    setIsGachaLoading(true);
-
-    try {
-      console.log("📡 チュートリアルガチャAPI呼び出し... (Bodyなし)");
-      const res = await api.post<TutorialGachaResponse>('/gacha/tutorial');
-
-      const data = res.data;
-      console.log("🎁 ガチャAPIレスポンス成功:", data);
-
-      if (data.status !== "error") {
-        setGachaCharacter(data);
-        setStep('GACHA_RESULT');
-      } else {
-        alert("ガチャ失敗: " + data.message);
-        moveToNextSlide();
-      }
-    } catch (error) {
-      console.error("ガチャ通信エラー:", error);
-      alert("ガチャAPIとの通信に失敗しました。");
-      moveToNextSlide();
-    } finally {
-      setIsGachaLoading(false);
-    }
-  };
-
-  const moveToNextSlide = () => {
-    if (slideIndex < tutorialSlides.length - 1) {
-      setSlideIndex(slideIndex + 1);
-    }
-  };
-
+  // ------------------------------------------
+  // 📱 4. 画面モードに応じたレンダリング
+  // ------------------------------------------
   return (
-    <div style={{ background: '#222', width: '100vw', height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+    <div className="relative w-full max-w-[400px] h-screen bg-black mx-auto overflow-hidden select-none text-white flex flex-col justify-center items-center">
+      
+      {/* 1. タイトル画面 */}
+      {mode === 'TITLE' && (
+        <TitleScreen 
+          onRegisterClick={() => setMode('REGISTER')} 
+          onLoginClick={() => setMode('LOGIN')} 
+        />
+      )}
 
-      <style>
-        {`
-          @keyframes gameTapRipple {
-            0% { transform: translate(-50%, -50%) scale(0.3); opacity: 1; box-shadow: 0 0 10px 5px rgba(255, 255, 255, 0.9); }
-            100% { transform: translate(-50%, -50%) scale(2); opacity: 0; box-shadow: 0 0 30px 10px rgba(234, 179, 8, 0); }
-          }
-          @keyframes whiteFlash {
-            0% { background-color: #ffffff; }
-            100% { background-color: transparent; }
-          }
-          @keyframes slideDownFade {
-            0% { transform: translateY(-30px); opacity: 0; }
-            100% { transform: translateY(0); opacity: 1; }
-          }
-          @keyframes focusIn {
-            0% { filter: blur(10px); transform: scale(1.05); opacity: 0; }
-            100% { filter: blur(0px); transform: scale(1); opacity: 1; }
-          }
-          @keyframes fadeInDelay {
-            0% { opacity: 0; }
-            80% { opacity: 0; }
-            100% { opacity: 1; }
-          }
-        `}
-      </style>
+      {/* 2. 新規登録画面 */}
+      {mode === 'REGISTER' && (
+        <RegisterScreen 
+          onRegisterSuccess={(name, userGrade) => {
+            setGrade(userGrade); // 選択された学年を保存
+            setMode('STORY');    // 紙芝居（ストーリー）モードを開始
+          }} 
+        />
+      )}
 
-      <main style={{ 
-        background: '#000', 
-        width: '100%', 
-        maxWidth: '430px', 
-        height: '100vh', 
-        position: 'relative', 
-        overflow: 'hidden',
-        boxShadow: '0 0 30px rgba(0,0,0,0.8)',
-        display: 'flex',
-        flexDirection: 'column'
-      }}>
+      {/* 3. ログイン画面 */}
+      {mode === 'LOGIN' && (
+        <LoginScreen 
+          onLoginSuccess={() => {
+            // screens.tsx側で window.location.href が走るため、ここは予備の空関数
+          }} 
+        />
+      )}
 
-        {step === 'TITLE' && (
-          <TitleScreen 
-            onRegisterClick={() => setStep('REGISTER')} 
-            onLoginClick={() => setStep('LOGIN')} 
-          />
-        )}
+      {/* 4. 本編ストーリー（紙芝居 ＆ 動画） */}
+      {mode === 'STORY' && currentSlide && (
+        <div className="w-full h-full relative">
+          
+          {/* 🖼️ 紙芝居：全画面タップだけでサクサク進む */}
+          {currentSlide.type === 'image' && currentSlide.src && (
+            <div 
+              onClick={handleNext}
+              className="w-full h-full bg-contain bg-no-repeat bg-center cursor-pointer"
+              style={{ backgroundImage: `url(${currentSlide.src})` }}
+            />
+          )}
 
-        {step === 'REGISTER' && (
-          <RegisterScreen onRegisterSuccess={(name, grade) => {
-            // ユーザー特定をトークンで行うため、userIdの保持は不要に
-            setGrade(grade);
-            setStep('SLIDESHOW');
-            setSlideIndex(0);
-          }} />
-        )}
+          {/* 🎬 動画エリア：再生終了後に自動で次のステップ（tut17）へ */}
+          {currentSlide.type === 'video' && currentSlide.src && (
+            <video 
+              src={currentSlide.src} 
+              autoPlay 
+              playsInline 
+              onEnded={handleNext}
+              className="w-full h-full object-cover"
+            />
+          )}
 
-        {step === 'LOGIN' && (
-          <LoginScreen onLoginSuccess={() => {
-            window.location.href = '/dashboard';
-          }} />
-        )}
+        </div>
+      )}
 
-        {step === 'SLIDESHOW' && (
-          <div 
-            onClick={handleSlideTap} 
-            style={{ 
-              width: '100%', 
-              height: '100%', 
-              cursor: isMp4 ? 'default' : 'pointer',
-              position: 'relative',
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              background: '#111',
-              overflow: 'hidden'
-            }}
-          >
-            {currentAudioPath && (
-              <>
-                <audio
-                  ref={audioRef}
-                  src={currentAudioPath}
-                  preload="auto"
-                  onPlay={() => {
-                    setIsAudioPlaying(true);
-                    setAudioNeedsGesture(false);
-                  }}
-                  onPause={() => setIsAudioPlaying(false)}
-                  onEnded={() => setIsAudioPlaying(false)}
-                  onError={() => setMediaError(`音声ファイルが見つかりません:\npublic${currentAudioPath}`)}
-                />
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: 'max(12px, env(safe-area-inset-top))',
-                    right: '12px',
-                    zIndex: 60,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'flex-end',
-                    gap: '6px',
-                  }}
-                >
-                  <button
-                    type="button"
-                    onClick={handleAudioToggle}
-                    aria-pressed={isAudioPlaying}
-                    style={{
-                      border: '1px solid rgba(255,255,255,0.6)',
-                      borderRadius: '999px',
-                      background: 'rgba(0,0,0,0.72)',
-                      color: '#fff',
-                      padding: '9px 13px',
-                      fontSize: '13px',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      backdropFilter: 'blur(6px)',
-                    }}
-                  >
-                    {isAudioPlaying ? '🔊 音声を停止' : '▶ 音声を再生'}
-                  </button>
-                  {audioNeedsGesture && (
-                    <span
-                      style={{
-                        maxWidth: '190px',
-                        borderRadius: '8px',
-                        background: 'rgba(0,0,0,0.72)',
-                        color: '#fff',
-                        padding: '5px 8px',
-                        fontSize: '11px',
-                        lineHeight: 1.4,
-                      }}
-                    >
-                      ブラウザの制限により、ボタンを押すと音声が流れます
-                    </span>
-                  )}
-                </div>
-              </>
-            )}
-
-            {tapEffects.map(effect => (
-              <div 
-                key={effect.id}
-                style={{
-                  position: 'absolute',
-                  left: effect.x,
-                  top: effect.y,
-                  width: '30px',
-                  height: '30px',
-                  borderRadius: '50%',
-                  backgroundColor: 'rgba(255, 255, 255, 0.8)',
-                  pointerEvents: 'none',
-                  zIndex: 50,
-                  animation: 'gameTapRipple 0.5s ease-out forwards'
-                }}
-              />
-            ))}
-
-            {isMp4 ? (
-              <div style={{ width: '100%', height: '100%', position: 'relative' }}>
-                <video 
-                  src={currentPath} 
-                  autoPlay 
-                  playsInline 
-                  muted 
-                  onEnded={handleVideoEnded} 
-                  style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                  onError={() => setMediaError(`動画ファイルが見つかりません:\npublic${currentPath}`)}
-                />
-                {isGachaLoading && (
-                  <div style={{ position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#000', fontSize: '1.2rem', fontWeight: 'bold' }}>
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black mr-3"></div>
-                    データ解析中...
-                  </div>
-                )}
-              </div>
-            ) : (
-              <img 
-                src={currentPath} 
-                alt="Tutorial" 
-                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                onError={() => setMediaError(`画像ファイルが見つかりません:\npublic${currentPath}`)}
-              />
-            )}
-
-            {mediaError && (
-              <div
-                role="alert"
-                style={{
-                  position: 'absolute',
-                  left: '16px',
-                  right: '16px',
-                  bottom: '16px',
-                  zIndex: 70,
-                  borderRadius: '10px',
-                  background: 'rgba(127, 29, 29, 0.92)',
-                  color: '#fff',
-                  padding: '12px',
-                  whiteSpace: 'pre-line',
-                  fontSize: '12px',
-                }}
-              >
-                {mediaError}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ガチャ結果画面 */}
-        {step === 'GACHA_RESULT' && (
-          <div className="w-full h-full flex flex-col items-center justify-center p-6 text-white text-center select-none relative overflow-hidden"
-               style={{ 
-                 backgroundImage: 'radial-gradient(circle at center, #1e293b 0%, #020617 100%)',
-               }}>
-
-            <div className="absolute inset-0 z-50 pointer-events-none"
-                 style={{ animation: 'whiteFlash 1.2s ease-out forwards' }} />
-
-            <div className="flex flex-col items-center z-10 w-full px-4 pt-12 h-full justify-between pb-12">
-
-              <div style={{ animation: 'slideDownFade 0.8s ease-out forwards', opacity: 0 }}>
-                <p className="text-yellow-400 font-black tracking-[0.4em] text-sm mb-2 drop-shadow-[0_0_8px_rgba(234,179,8,0.8)]">
-                  NEW CHARACTER
-                </p>
-                <div className="h-[1px] w-32 bg-gradient-to-r from-transparent via-yellow-500 to-transparent mx-auto" />
-              </div>
-
-              <div className="relative w-full max-w-[300px] mt-8"
-                   style={{ animation: 'focusIn 1s ease-out 0.3s forwards', opacity: 0 }}>
-                <div className="absolute -inset-4 bg-yellow-500/10 rounded-full blur-2xl animate-pulse" />
-                <h3 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white via-slate-200 to-slate-400 tracking-wider mb-2">
-                  {gachaCharacter?.name || "倉貫さん"}
-                </h3>
-                <div className="flex justify-center items-center gap-3 mb-6">
-                  <span className="px-3 py-1 bg-white/10 border border-white/20 rounded text-xs tracking-widest">Lv.1</span>
-                  <span className="px-3 py-1 bg-yellow-500/20 border border-yellow-500/50 text-yellow-400 rounded text-xs tracking-widest font-bold">COST 99</span>
-                </div>
-                <div className="bg-black/40 backdrop-blur-sm p-4 rounded-xl border border-slate-700/50 text-left">
-                  <p className="text-slate-300 text-sm leading-relaxed">
-                    データベースとの同期完了。
-
-                    あなたのプロジェクトにアサインされました。
-                  </p>
-                </div>
-              </div>
-
-              <div className="w-full mt-auto" style={{ animation: 'fadeInDelay 2s ease-out forwards', opacity: 0 }}>
-                <button 
-                  onClick={() => {
-                    setStep('SLIDESHOW'); 
-                    moveToNextSlide();    
-                  }} 
-                  className="w-full max-w-[260px] mx-auto py-4 bg-white hover:bg-slate-200 text-black font-black rounded-xl shadow-[0_0_20px_rgba(255,255,255,0.3)] transition-all transform active:scale-95 text-sm tracking-widest uppercase"
-                >
-                  確認
-                </button>
-              </div>
-
-            </div>
-          </div>
-        )}
-
-      </main>
     </div>
   );
 }
